@@ -10,6 +10,11 @@ require('dotenv').config();
 
 const { buildColumns, buildSummaryRow, normalizePayload } = require('./table.js');
 
+/** Лог с отметкой времени — без него разбирать «письмо не пришло» невозможно */
+function log(message) {
+    console.log(`[${new Date().toISOString()}] ${message}`);
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -19,6 +24,10 @@ const upload = multer({ dest: 'uploads/' });
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const ADMIN_PASS = process.env.ADMIN_PASS;
+// Microsoft 365 на стороне получателя отклоняет письма примерно от 25 МБ,
+// а base64 раздувает вложения на треть. Держим запас.
+const MAX_ATTACHMENTS_BYTES = 18 * 1024 * 1024;
+
 const DEFAULT_RECIPIENTS = 'Andrey.Ryzhov@vegadevelopment.com, Viktoriya.Novikova@vegadevelopment.com';
 
 const transporter = nodemailer.createTransport({
@@ -178,10 +187,19 @@ function buildEmailHtml(data) {
     const columns = buildColumns();
     const row = buildSummaryRow(data);
 
+    // Крайние столбцы оставляем читаемыми, средние ужимаем до предела,
+    // чтобы все 52 колонки помещались без прокрутки вбок
+    const lastIndex = columns.length - 1;
+    const edgeWidth = 6.5;
+    const middleWidth = (100 - edgeWidth * 2) / (columns.length - 2);
+    const widthOf = (i) => (i === 0 || i === lastIndex ? edgeWidth : middleWidth);
+
+    const cellBase = 'padding:1px 2px;word-break:break-word;overflow-wrap:anywhere;vertical-align:top;line-height:1.15;';
+
     const headerCells = columns
         .map(
-            (c) =>
-                `<th style="background:#16255C;color:#fff;font:bold 7px Arial;padding:1px 2px;border:1px solid #BFC9D9;white-space:nowrap;">${escapeHtml(
+            (c, i) =>
+                `<th style="width:${widthOf(i).toFixed(2)}%;background:#16255C;color:#fff;font:bold 6px Arial;${cellBase}border:1px solid #BFC9D9;text-align:left;">${escapeHtml(
                     c.header
                 )}</th>`
         )
@@ -189,8 +207,8 @@ function buildEmailHtml(data) {
 
     const valueCells = columns
         .map(
-            (c) =>
-                `<td style="font:8px Arial;padding:1px 2px;border:1px solid #DDE3EC;white-space:nowrap;">${escapeHtml(
+            (c, i) =>
+                `<td style="width:${widthOf(i).toFixed(2)}%;font:7px Arial;${cellBase}border:1px solid #DDE3EC;">${escapeHtml(
                     row[c.key]
                 )}</td>`
         )
@@ -202,9 +220,7 @@ function buildEmailHtml(data) {
         .join('; ');
 
     const summaryPairs = [
-        ['Сотрудник', row.fullName],
         ['Отдел', row.department],
-        ['Должность', row.positionRu],
         ['Место работы', row.employer],
         ['Вахта', [row.rotationStart, row.rotation].filter(Boolean).join(', ')],
         ['Гражданство', row.citizenship],
@@ -239,12 +255,12 @@ function buildEmailHtml(data) {
       Строка для таблицы
     </div>
     <div style="font:10px Arial;color:#6A7A93;margin-bottom:6px;max-width:520px;">
-      Выдели таблицу ниже, скопируй и вставь в свою базу — колонки встанут по местам.
+      Выделите таблицу ниже, скопируйте и вставьте в свою базу — колонки встанут по местам.
       Тот же набор данных лежит во вложении <b>.xlsx</b>: там можно нажать Ctrl+A и скопировать всё целиком.
     </div>
 
-    <div style="overflow-x:auto;">
-      <table style="border-collapse:collapse;">
+    <div style="max-width:720px;">
+      <table style="border-collapse:collapse;table-layout:fixed;width:100%;">
         <tr>${headerCells}</tr>
         <tr>${valueCells}</tr>
       </table>
@@ -256,6 +272,24 @@ function buildEmailHtml(data) {
     </div>
   </div>
 </body></html>`;
+}
+
+/** Простая текстовая версия того же письма */
+function buildEmailText(data) {
+    const columns = buildColumns();
+    const row = buildSummaryRow(data);
+    const lines = [
+        [row.fullName, row.positionRu].filter(Boolean).join(' — '),
+        '',
+        'Анкета нового работника. Сводная таблица во вложении .xlsx',
+        ''
+    ];
+    columns.forEach((c) => {
+        const value = row[c.key];
+        if (value === undefined || value === null || String(value).trim() === '') return;
+        lines.push(`${c.header}: ${value}`);
+    });
+    return lines.join('\n');
 }
 
 /* ------------------------------------------------------------------ */
@@ -296,21 +330,52 @@ app.post('/api/submit', upload.any(), (req, res) => {
                 }
             }
 
-            await transporter.sendMail({
-                from: SMTP_USER,
+            // Считаем вес письма заранее: если не влезет — честно скажем работнику,
+            // а не отчитаемся об успехе, которого не было
+            const totalBytes = attachments.reduce((sum, a) => {
+                if (a.content) return sum + a.content.length;
+                try {
+                    return sum + fs.statSync(a.path).size;
+                } catch {
+                    return sum;
+                }
+            }, 0);
+
+            log(`анкета: ${data.employeeName} | получатели: ${recipients} | вложений: ${attachments.length} | вес: ${(totalBytes / 1048576).toFixed(1)} МБ`);
+
+            if (totalBytes > MAX_ATTACHMENTS_BYTES) {
+                log(`ОТКАЗ: вложения слишком тяжёлые (${(totalBytes / 1048576).toFixed(1)} МБ)`);
+                cleanup();
+                return res.status(413).json({ error: 'too-large' });
+            }
+
+            const info = await transporter.sendMail({
+                // Имя отправителя и обратный адрес заметно улучшают доставляемость:
+                // без них почта организации охотнее отправляет письмо в спам
+                from: `Анкета нового работника <${SMTP_USER}>`,
+                replyTo: data.personalEmail || SMTP_USER,
                 to: recipients,
                 subject: `Анкета ОТ — ${data.employeeName}`,
                 html: buildEmailHtml(data),
+                text: buildEmailText(data),
                 attachments
             });
+
+            log(`отправлено: ${info.messageId} | принято: ${JSON.stringify(info.accepted)} | отклонено: ${JSON.stringify(info.rejected)} | ответ: ${info.response}`);
 
             cleanup();
             res.status(200).json({ success: true });
         } catch (error) {
-            console.error('Ошибка при обработке анкеты:', error.message || error);
+            log(`ОШИБКА: ${error.message || error}`);
+            if (error.response) log(`  ответ SMTP: ${error.response}`);
+            if (error.stack) log(`  ${error.stack.split('\n').slice(1, 3).join(' | ')}`);
             cleanup();
-            res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+            if (!res.headersSent) res.status(500).json({ error: 'Внутренняя ошибка сервера' });
         }
+    // Без этого одна упавшая отправка навсегда обрывает очередь
+    // и все следующие анкеты молча перестают обрабатываться
+    }).catch((error) => {
+        log(`СБОЙ ОЧЕРЕДИ: ${error && error.message ? error.message : error}`);
     });
 });
 
