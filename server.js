@@ -9,7 +9,6 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const { buildColumns, buildSummaryRow, normalizePayload } = require('./table.js');
-const { buildWordDoc } = require('./word.js');
 
 const app = express();
 app.use(cors());
@@ -197,11 +196,6 @@ function buildEmailHtml(data) {
         )
         .join('');
 
-    // Тот же набор данных в виде текста с табуляцией — можно скопировать
-    // и вставить в Google-таблицу или блокнот
-    const tsvHeader = columns.map((c) => c.header).join('\t');
-    const tsvValues = columns.map((c) => String(row[c.key] === undefined ? '' : row[c.key])).join('\t');
-
     const trainingsText = [1, 2, 3, 4, 5]
         .map((i) => row[`training${i}`])
         .filter(Boolean)
@@ -255,19 +249,8 @@ function buildEmailHtml(data) {
       </table>
     </div>
 
-    <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:14px;margin:20px 0 8px;">
-      То же самое текстом
-    </div>
-    <div style="font:11px Arial;color:#6A7A93;margin-bottom:8px;">
-      Для вставки в Google-таблицу: скопируй обе строки ниже.
-    </div>
-    <pre style="font:11px 'Courier New',monospace;background:#F4F6FA;border:1px solid #DDE3EC;padding:10px;margin:0;white-space:pre;overflow-x:auto;">${escapeHtml(
-        tsvHeader
-    )}
-${escapeHtml(tsvValues)}</pre>
-
     <div style="font:11px Arial;color:#6A7A93;border-top:1px solid #DDE3EC;margin-top:20px;padding-top:12px;">
-      Во вложении: сводная таблица Excel, анкета в Word и все загруженные сканы.
+      Во вложении: сводная таблица Excel и все загруженные сканы.
       Файлы с сервера удалены сразу после отправки этого письма.
     </div>
   </div>
@@ -300,14 +283,8 @@ app.post('/api/submit', upload.any(), (req, res) => {
             const recipients = session ? session.recipients : DEFAULT_RECIPIENTS;
 
             const safeName = String(data.employeeName || 'без_имени').replace(/\s+/g, '_');
-            const row = buildSummaryRow(data);
             const excelBuffer = await generateExcelBuffer(data);
-            const wordHtml = buildWordDoc(row, { consentText: data.consentText });
-
-            const attachments = [
-                { filename: `Анкета_${safeName}.xlsx`, content: excelBuffer },
-                { filename: `Анкета_${safeName}.doc`, content: Buffer.from(wordHtml, 'utf8') }
-            ];
+            const attachments = [{ filename: `Анкета_${safeName}.xlsx`, content: excelBuffer }];
 
             if (req.files) {
                 for (const file of req.files) {
