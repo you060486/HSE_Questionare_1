@@ -40,17 +40,32 @@ export default function SmartSelect({
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Сколько оставить сверху под липкой полосой прогресса, чтобы поле не уехало под неё
-  const TOP_GAP = 84;
+  // Отступ сверху считаем от реальной высоты липкой панели с логотипом и прогрессом,
+  // иначе поле уезжает под неё
+  const topGap = () => {
+    const header = document.querySelector('header.sticky');
+    const height = header ? header.getBoundingClientRect().height : 0;
+    return Math.round(height) + 12;
+  };
 
   const selected = Array.isArray(value) ? value : value ? [value] : [];
 
-  const optionList = useMemo(() => {
-    const base = allowOther ? [...items, { code: otherCode, title: otherLabel, group: '' }] : items;
-    return base;
-  }, [items, allowOther, otherCode, otherLabel]);
+  const otherOption = useMemo(
+    () => (allowOther ? { code: otherCode, title: otherLabel, group: '' } : null),
+    [allowOther, otherCode, otherLabel]
+  );
 
-  const results = useMemo(() => searchItems(optionList, query), [optionList, query]);
+  const optionList = useMemo(
+    () => (otherOption ? [...items, otherOption] : items),
+    [items, otherOption]
+  );
+
+  // «Другое» показываем всегда, даже когда поиск ничего не нашёл:
+  // иначе человеку некуда вписать обучение, которого нет в справочнике
+  const results = useMemo(() => {
+    const found = searchItems(items, query);
+    return otherOption ? [...found, otherOption] : found;
+  }, [items, query, otherOption]);
 
   // Заголовки групп показываем только когда человек ещё ничего не искал
   const grouped = useMemo(() => {
@@ -139,7 +154,7 @@ export default function SmartSelect({
     requestAnimationFrame(() => {
       const node = wrapperRef.current;
       if (!node) return;
-      const shift = node.getBoundingClientRect().top - TOP_GAP;
+      const shift = node.getBoundingClientRect().top - topGap();
       if (Math.abs(shift) > 8) {
         window.scrollBy({ top: shift, behavior: 'smooth' });
       }
@@ -305,6 +320,9 @@ export default function SmartSelect({
             {/* Список: высота подстроена под свободное место на экране */}
             <div className="overflow-y-auto vd-scroll overscroll-contain" style={{ maxHeight: `${listMaxHeight}px` }}>
               {results.length === 0 && <p className="px-4 py-6 text-center text-[13px] text-vd-muted">{emptyText}</p>}
+              {allowOther && results.length === 1 && query.trim() && (
+                <p className="px-4 pt-4 pb-1 text-center text-[12px] text-vd-muted">{emptyText}</p>
+              )}
 
               {grouped.map(({ group, rows }) => (
                 <div key={group || 'all'}>

@@ -319,11 +319,8 @@ export default function SurveyForm({ lang, onLangChange }) {
       need('licenceFile', !!licenceFile, t.fileRequired);
     }
 
-    trainings.forEach((item) => {
-      need(`training_${item.id}_code`, filled(item.code), t.selectAtLeastOne);
-      if (item.code === TRAINING_OTHER_CODE) need(`training_${item.id}_custom`, filled(item.customTitle));
-      need(`training_${item.id}_date`, isValidDate(item.issueDate), t.invalidFormat);
-    });
+    // Раздел «Другие обучения» заполнять не обязательно — он не блокирует отправку.
+    // Незаполненные строки просто не попадут ни в письмо, ни в таблицу.
 
     need('consent', consent, t.required);
 
@@ -336,7 +333,7 @@ export default function SurveyForm({ lang, onLangChange }) {
     passportIssuedBy, passportDeptCode, protocols, electroEducation, electroGroup, electroDate, electroFile,
     heightClimb, heightApprove, heightWontDo, needsHeightPhoto, heightPhoto,
     confinedWork, confinedApprove, confinedWontDo, needsConfinedPhoto, confinedPhoto,
-    driveWill, driveWont, licenceNumber, licenceDate, licenceCategories, licenceFile, trainings, consent,
+    driveWill, driveWont, licenceNumber, licenceDate, licenceCategories, licenceFile, consent,
   ]);
 
   const progress = useMemo(() => {
@@ -418,7 +415,7 @@ export default function SurveyForm({ lang, onLangChange }) {
           : [];
 
       const trainingList = trainings
-        .filter((item) => item.code)
+        .filter((item) => item.code && (item.code !== TRAINING_OTHER_CODE || item.customTitle.trim()))
         .map((item) => ({
           code: item.code,
           title:
@@ -566,19 +563,14 @@ export default function SurveyForm({ lang, onLangChange }) {
   /* ---------------------------------------------------------------- */
   return (
     <div className="min-h-screen bg-vd-bg pb-24 sm:pb-8">
-      {/* Шапка */}
-      <header className="relative overflow-hidden vd-header-gradient">
-        <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div className="absolute right-24 -bottom-16 w-32 h-32 border border-white/[0.07]" style={{ transform: 'rotate(45deg)' }} />
-          <div className="absolute -right-16 bottom-4 w-40 h-40 border border-white/[0.06]" style={{ transform: 'rotate(45deg)' }} />
-        </div>
+      {/* Верхняя панель: логотип, переключатель языка и полоса заполнения.
+          Держится вверху экрана при прокрутке. */}
+      <header className="sticky top-0 z-30 bg-white border-b border-vd-line shadow-[0_1px_3px_rgba(22,37,92,0.06)]">
+        <div className="max-w-3xl mx-auto px-4 sm:px-8 py-2.5 sm:py-3">
+          <div className="flex items-center justify-between gap-4">
+            <VegaLogo className="h-9 sm:h-11 text-[13px] sm:text-[16px]" />
 
-        <div className="relative max-w-3xl mx-auto px-4 sm:px-8 pt-4 pb-7 sm:pt-5 sm:pb-9">
-          {/* Логотип стоит на светлой части градиента — подложка ему не нужна */}
-          <div className="flex items-center justify-between gap-4 mb-10 sm:mb-12">
-            <VegaLogo className="h-11 sm:h-14 text-[15px] sm:text-[19px]" />
-
-            <div className="flex items-center gap-0.5 border border-vd-line bg-white p-0.5 shrink-0 vd-sharp">
+            <div className="flex items-center gap-0.5 border border-vd-line p-0.5 shrink-0 vd-sharp">
               <Globe className="w-3.5 h-3.5 text-vd-muted ml-1.5 mr-0.5 hidden sm:block" />
               {['ru', 'en'].map((code) => (
                 <button
@@ -595,20 +587,22 @@ export default function SurveyForm({ lang, onLangChange }) {
             </div>
           </div>
 
-          <p className="text-[#6FBBEA] text-[10px] sm:text-[11px] vd-eyebrow mb-2.5">{t.subtitle}</p>
-          <h1 className="text-white text-[22px] sm:text-3xl font-black leading-[1.15] mb-3">{t.title}</h1>
-          <p className="text-white/60 text-[12px] sm:text-[13px] leading-relaxed max-w-xl">{t.intro}</p>
+          {formVisible && (
+            <div className="mt-2.5 sm:mt-3">
+              <ProgressBar value={progress} label={`${t.progressLabel} ${progress}%`} />
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Индикатор заполнения */}
-      {formVisible && (
-        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-vd-line">
-          <div className="max-w-3xl mx-auto px-4 sm:px-8 py-2.5">
-            <ProgressBar value={progress} label={`${t.progressLabel} ${progress}%`} />
-          </div>
+      {/* Название анкеты */}
+      <div className="bg-white border-b border-vd-line-soft">
+        <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
+          <p className="text-vd-blue text-[10px] sm:text-[11px] vd-eyebrow mb-2.5">{t.subtitle}</p>
+          <h1 className="text-vd-navy text-[22px] sm:text-3xl font-black leading-[1.15] mb-3">{t.title}</h1>
+          <p className="text-vd-muted text-[12px] sm:text-[13px] leading-relaxed max-w-xl">{t.intro}</p>
         </div>
-      )}
+      </div>
 
       <div className="max-w-3xl mx-auto px-3 sm:px-8 py-5 sm:py-8">
         {/* Выбор себя из списка */}
@@ -1519,7 +1513,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                       <RemoveButton onClick={() => removeTraining(item.id)} label={t.remove} />
                     </div>
 
-                    <Field label={t.otherTrainingTitle} required error={err(`training_${item.id}_code`)}>
+                    <Field label={t.otherTrainingTitle} error={err(`training_${item.id}_code`)}>
                       <div data-field={`training_${item.id}_code`}>
                         <SmartSelect
                           items={TRAININGS}
@@ -1545,7 +1539,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                     </Field>
 
                     {item.code === TRAINING_OTHER_CODE && (
-                      <Field label={t.otherTrainingCustom} required error={err(`training_${item.id}_custom`)}>
+                      <Field label={t.otherTrainingCustom} error={err(`training_${item.id}_custom`)}>
                         <div data-field={`training_${item.id}_custom`} className="vd-anim-expand">
                           <TextInput
                             value={item.customTitle}
@@ -1562,7 +1556,6 @@ export default function SurveyForm({ lang, onLangChange }) {
 
                     <Field
                       label={t.otherTrainingDate}
-                      required
                       hint={t.otherTrainingDateHint}
                       error={err(`training_${item.id}_date`)}
                     >
