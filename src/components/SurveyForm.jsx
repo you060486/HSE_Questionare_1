@@ -556,7 +556,8 @@ export default function SurveyForm({ lang, onLangChange }) {
 
         <div className="relative max-w-3xl mx-auto px-4 sm:px-8 pt-5 pb-7 sm:pt-7 sm:pb-9">
           <div className="flex items-start justify-between gap-4 mb-7 sm:mb-9">
-            <VegaLogo lang={lang} variant="light" className="h-9 sm:h-11 text-[15px] sm:text-[19px]" />
+            {/* Русский язык — логотип без пометки eng, английский — с ней */}
+            <VegaLogo lang={lang} variant="light" className="h-11 sm:h-14 text-[15px] sm:text-[19px]" />
 
             <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm p-0.5 shrink-0 vd-sharp">
               <Globe className="w-3.5 h-3.5 text-white/50 ml-1.5 hidden sm:block" />
@@ -946,6 +947,9 @@ export default function SurveyForm({ lang, onLangChange }) {
                               multiHint={t.searchMultiHint}
                               emptyText={t.searchEmpty}
                               doneLabel={t.searchDone}
+                          selectedLabel={t.searchSelected}
+                        selectedLabel={t.searchSelected}
+                              selectedLabel={t.searchSelected}
                               removeLabel={t.remove}
                               invalid={!!err(`protocol_${protocol.id}_areas`)}
                             />
@@ -1088,10 +1092,11 @@ export default function SurveyForm({ lang, onLangChange }) {
             {/* ========================= Документ ========================= */}
             {needsPassport && (
               <Section number="05" title={t.passportTitle} subtitle={t.passportComment}>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
                   <Field
                     label={lang === 'ru' ? country.passport.labelRu : country.passport.labelEn}
                     required
+                    labelTwoLines
                     hint={lang === 'ru' ? country.passport.hintRu : country.passport.hintEn}
                     error={err('passportNumber')}
                   >
@@ -1108,7 +1113,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                     </div>
                   </Field>
 
-                  <Field label={t.passportIssueDate} required error={err('passportIssueDate')}>
+                  <Field label={t.passportIssueDate} required labelTwoLines error={err('passportIssueDate')}>
                     <div data-field="passportIssueDate">
                       <TextInput
                         mask="date"
@@ -1377,6 +1382,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                         multiHint={t.searchMultiHint}
                         emptyText={t.searchEmpty}
                         doneLabel={t.searchDone}
+                        selectedLabel={t.searchSelected}
                         removeLabel={t.remove}
                         invalid={!!err('licenceCategories')}
                       />
@@ -1433,6 +1439,8 @@ export default function SurveyForm({ lang, onLangChange }) {
                           searchPlaceholder={t.otherTrainingSearch}
                           emptyText={t.searchEmpty}
                           doneLabel={t.searchDone}
+                          selectedLabel={t.searchSelected}
+                        selectedLabel={t.searchSelected}
                           removeLabel={t.remove}
                           invalid={!!err(`training_${item.id}_code`)}
                         />

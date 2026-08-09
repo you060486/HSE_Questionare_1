@@ -22,6 +22,7 @@ export default function SmartSelect({
   multiHint = 'Можно выбрать несколько: написали — выбрали — пишите следующее',
   doneLabel = 'Готово',
   removeLabel = 'Убрать',
+  selectedLabel = 'Выбрано',
   chipsLabel,
   invalid = false,
   allowOther = false,
@@ -31,6 +32,7 @@ export default function SmartSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -166,46 +168,87 @@ export default function SmartSelect({
             className="fixed inset-x-0 bottom-0 z-50 max-h-[82vh] flex flex-col bg-white border-t-2 border-vd-blue shadow-2xl vd-anim-sheet
                        sm:absolute sm:inset-x-0 sm:bottom-auto sm:top-[calc(100%+4px)] sm:z-40 sm:max-h-[22rem] sm:border sm:border-vd-blue sm:shadow-xl sm:vd-sharp"
           >
-            {/* Строка поиска */}
-            <div className="p-3 border-b border-vd-line-soft bg-white shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-vd-muted pointer-events-none" />
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={searchPlaceholder}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    className="vd-input pl-9 pr-9"
-                  />
-                  {query && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setQuery('');
-                        inputRef.current?.focus();
-                      }}
-                      aria-label={removeLabel}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-vd-muted hover:text-vd-navy"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
+            {/* Шапка окна: сначала выбранное, потом строка поиска */}
+            <div className="border-b border-vd-line-soft bg-white shrink-0">
+              {/* Выбранное — вверху, чтобы было видно, что уже отмечено */}
+              {chips.length > 0 && (
+                <div className="px-3 pt-3 pb-2.5 bg-vd-blue-pale/60 border-b border-vd-line-soft">
+                  <div className="flex items-baseline justify-between gap-2 mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-vd-navy">
+                      {selectedLabel}
+                    </span>
+                    <span className="text-[10px] font-bold text-vd-blue tabular-nums shrink-0">{chips.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto vd-scroll">
+                    {chips.map((item) => (
+                      <span
+                        key={item.code}
+                        className="vd-anim-chip inline-flex items-center gap-1 bg-vd-navy text-white text-[12px] font-bold pl-2.5 pr-1 py-1 vd-sharp"
+                      >
+                        {item.code}
+                        <button
+                          type="button"
+                          aria-label={`${removeLabel} ${item.code}`}
+                          onClick={() => remove(item.code)}
+                          className="w-5 h-5 flex items-center justify-center hover:bg-white/25 transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={close}
-                  className="sm:hidden shrink-0 px-3.5 py-3 bg-vd-navy text-white text-[13px] font-bold vd-sharp"
-                >
-                  {doneLabel}
-                </button>
+              )}
+
+              <div className="p-3">
+                <div className="flex items-center gap-2">
+                  {/* Лупа и поле — соседи во flex-строке, а не наложены друг на друга:
+                      так текст никогда не заезжает под значок */}
+                  <div
+                    className={`flex-1 min-w-0 flex items-center bg-white border transition-all vd-sharp ${
+                      searchFocused ? 'border-vd-blue shadow-[0_0_0_3px_rgba(27,133,206,0.14)]' : 'border-vd-line'
+                    }`}
+                  >
+                    <Search className="w-4 h-4 shrink-0 ml-3 mr-2 text-vd-muted" />
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onFocus={() => setSearchFocused(true)}
+                      onBlur={() => setSearchFocused(false)}
+                      placeholder={searchPlaceholder}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      className="flex-1 min-w-0 bg-transparent border-0 outline-none py-3 pr-2 text-[16px] leading-tight text-vd-ink placeholder:text-[#9aa8bd]"
+                    />
+                    {query && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setQuery('');
+                          inputRef.current?.focus();
+                        }}
+                        aria-label={removeLabel}
+                        className="shrink-0 w-9 h-9 flex items-center justify-center text-vd-muted hover:text-vd-navy transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={close}
+                    className="sm:hidden shrink-0 px-4 py-3 bg-vd-navy text-white text-[13px] font-bold vd-sharp"
+                  >
+                    {doneLabel}
+                  </button>
+                </div>
+                {multiple && <p className="text-[10px] text-vd-muted mt-2 leading-snug">{multiHint}</p>}
               </div>
-              {multiple && <p className="text-[10px] text-vd-muted mt-2 leading-snug">{multiHint}</p>}
             </div>
 
             {/* Список */}

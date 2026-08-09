@@ -3,10 +3,13 @@
 
 import { useEffect, useState } from 'react';
 import { VegaStar } from './Logo.jsx';
+import { LOGO_FILES } from '../data/logo.js';
 
 export default function LanguageSplash({ onChoose }) {
-  const [stage, setStage] = useState(0); // 0 — собирается звезда, 1 — показываем выбор
+  const [stage, setStage] = useState(0); // 0 — появляется логотип, 1 — показываем выбор
   const [leaving, setLeaving] = useState(false);
+  // До выбора языка показываем международный вариант логотипа (с пометкой eng)
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setStage(1), 900);
@@ -44,22 +47,36 @@ export default function LanguageSplash({ onChoose }) {
       </div>
 
       <div className="relative w-full max-w-sm text-center">
-        {/* Звезда */}
-        <div className="flex justify-center mb-7">
-          <VegaStar className="w-24 h-24 sm:w-28 sm:h-28 drop-shadow-2xl" animated />
-        </div>
-
-        {/* Название компании */}
-        <div
-          className="mb-10"
-          style={{ animation: 'vd-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) 0.62s both' }}
-        >
-          <div className="text-[#5FB6EA] font-black text-2xl sm:text-3xl leading-none tracking-tight">VEGA</div>
-          <div className="text-white font-black text-base sm:text-lg leading-none tracking-[0.02em] mt-1">
-            DEVELOPMENT
+        {/* Логотип компании */}
+        {logoFailed ? (
+          <>
+            <div className="flex justify-center mb-7">
+              <VegaStar className="w-24 h-24 sm:w-28 sm:h-28 drop-shadow-2xl" animated />
+            </div>
+            <div className="mb-10" style={{ animation: 'vd-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) 0.62s both' }}>
+              <div className="text-[#5FB6EA] font-black text-2xl sm:text-3xl leading-none tracking-tight">VEGA</div>
+              <div className="text-white font-black text-base sm:text-lg leading-none tracking-[0.02em] mt-1">
+                DEVELOPMENT
+              </div>
+              <div className="mx-auto mt-5 h-px w-14 bg-white/25" />
+            </div>
+          </>
+        ) : (
+          <div
+            className="mb-10"
+            style={{ animation: 'vd-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both' }}
+          >
+            <div className="inline-flex bg-white px-6 py-5 shadow-2xl">
+              <img
+                src={LOGO_FILES.en}
+                alt="Vega Development"
+                onError={() => setLogoFailed(true)}
+                className="h-20 sm:h-24 w-auto object-contain"
+              />
+            </div>
+            <div className="mx-auto mt-6 h-px w-14 bg-white/25" />
           </div>
-          <div className="mx-auto mt-5 h-px w-14 bg-white/25" />
-        </div>
+        )}
 
         {/* Выбор языка */}
         <div

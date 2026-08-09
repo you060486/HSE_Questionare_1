@@ -32,6 +32,7 @@ body {
   color: var(--color-vd-ink);
 }
 
+@layer components {
 /* Углы намеренно почти прямые — как в корпоративной презентации */
 .vd-sharp {
   border-radius: 2px;
@@ -90,98 +91,6 @@ body {
   border-bottom: 0.36em solid transparent;
   border-left: 0.5em solid var(--color-vd-blue);
 }
-
-/* ==========================================================================
-   Анимации
-   ========================================================================== */
-@keyframes vd-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes vd-fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes vd-expand {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scaleY(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scaleY(1);
-  }
-}
-
-@keyframes vd-chip-in {
-  0% {
-    opacity: 0;
-    transform: scale(0.82);
-  }
-  60% {
-    transform: scale(1.04);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes vd-sheet-up {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes vd-ray-in {
-  from {
-    opacity: 0;
-    transform: scale(0.35) rotate(-25deg);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
-  }
-}
-
-@keyframes vd-sweep {
-  from {
-    transform: translateX(-101%);
-  }
-  to {
-    transform: translateX(0);
-  }
-}
-
-@keyframes vd-pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(27, 133, 206, 0.35);
-  }
-  70% {
-    box-shadow: 0 0 0 12px rgba(27, 133, 206, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(27, 133, 206, 0);
-  }
-}
-
 .vd-anim-fade-up {
   animation: vd-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -240,7 +149,6 @@ body {
 .vd-sweep-btn:focus-visible::after {
   transform: translateX(0);
 }
-
 /* ==========================================================================
    Поля ввода
    ========================================================================== */
@@ -363,6 +271,98 @@ body {
 .vd-scroll::-webkit-scrollbar-thumb {
   background: var(--color-vd-line);
   border-radius: 3px;
+}
+}
+
+/* ==========================================================================
+   Анимации
+   ========================================================================== */
+@keyframes vd-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vd-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vd-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes vd-chip-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes vd-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vd-ray-in {
+  from {
+    opacity: 0;
+    transform: scale(0.35) rotate(-25deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes vd-sweep {
+  from {
+    transform: translateX(-101%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes vd-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(27, 133, 206, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(27, 133, 206, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(27, 133, 206, 0);
+  }
 }
 
 /* Уважаем настройку «уменьшить движение» в системе пользователя */

@@ -41,11 +41,19 @@ export function SubHeading({ children, className = '' }) {
 /* ------------------------------------------------------------------ */
 /* Обёртка поля: подпись, подсказка, ошибка                            */
 /* ------------------------------------------------------------------ */
-export function Field({ label, hint, required, dim, error, optionalMark, children, className = '' }) {
+/**
+ * @param {boolean} labelTwoLines — резервирует под подпись высоту в две строки.
+ *   Нужно там, где поля стоят парой: у одного подпись длинная и переносится,
+ *   у другого короткая — без этого поля ввода встают на разной высоте.
+ */
+export function Field({ label, hint, required, dim, error, optionalMark, labelTwoLines, children, className = '' }) {
   return (
     <div className={className}>
       {label && (
-        <label className={`block text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 ${dim ? 'text-vd-muted' : 'text-vd-navy'}`}>
+        <label
+          className={`block text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 leading-tight
+            ${labelTwoLines ? 'sm:min-h-[2.1rem]' : ''} ${dim ? 'text-vd-muted' : 'text-vd-navy'}`}
+        >
           {label}
           {required && <span className="text-vd-blue ml-1">*</span>}
           {dim && !required && optionalMark && (
