@@ -76,11 +76,16 @@ export default function SurveyForm({ lang, onLangChange }) {
   const [passportIssueDate, setPassportIssueDate] = useState('');
   const [passportDeptCode, setPassportDeptCode] = useState('');
 
-  // Скрытые поля из ссылки — уходят в таблицу
+  // Латиница из ссылки — уходит в таблицу, работник её не видит
   const [nameEn, setNameEn] = useState('');
   const [surnameEn, setSurnameEn] = useState('');
+
+  // Должность подставляется из ссылки, но работник её проверяет и подтверждает
   const [positionRu, setPositionRu] = useState('');
   const [positionEn, setPositionEn] = useState('');
+  const [positionPrefilled, setPositionPrefilled] = useState(false);
+  const [positionConfirmed, setPositionConfirmed] = useState(false);
+  const [positionEditing, setPositionEditing] = useState(false);
 
   const [promStatus, setPromStatus] = useState('');
   const [protocols, setProtocols] = useState([emptyProtocol()]);
@@ -142,6 +147,8 @@ export default function SurveyForm({ lang, onLangChange }) {
     setSelectedEmpIndex(index);
     setEmailsConfirmed(false);
     setEmailsEditing(false);
+    setPositionConfirmed(false);
+    setPositionEditing(false);
 
     if (index === '-1' || index === '') {
       setEmployeeName('');
@@ -152,6 +159,7 @@ export default function SurveyForm({ lang, onLangChange }) {
       setSurnameEn('');
       setPositionRu('');
       setPositionEn('');
+      setPositionPrefilled(false);
       return;
     }
 
@@ -166,6 +174,8 @@ export default function SurveyForm({ lang, onLangChange }) {
     setSurnameEn(emp.surnameEn || '');
     setPositionRu(emp.posRu || '');
     setPositionEn(emp.posEn || '');
+    // Режим подтверждения включаем, только если должность вообще подставилась
+    setPositionPrefilled(Boolean(emp.posRu || emp.posEn));
   };
 
   /* ---------------------------------------------------------------- */
@@ -183,6 +193,7 @@ export default function SurveyForm({ lang, onLangChange }) {
   const hasUnknown = promStatus === 'unknown' || electroStatus === 'unknown';
   // Почты показываем на подтверждение, пока человек не решил их править
   const emailsInConfirmMode = emailsPrefilled && !emailsEditing;
+  const positionInConfirmMode = positionPrefilled && !positionEditing;
 
   // Гражданство сменилось — идентификаторы и документ больше не подходят
   const prevCountry = useRef(countryId);
@@ -254,6 +265,7 @@ export default function SurveyForm({ lang, onLangChange }) {
     need('employer', employer !== 'Другое' || filled(employerOther));
     if (country.isOther) need('citizenshipOther', filled(citizenshipOther));
     need('employeeName', filled(employeeName) && employeeName.trim().split(/\s+/).length >= 2);
+    if (positionInConfirmMode) need('positionConfirmed', positionConfirmed, t.positionConfirmRequired);
     need('birthDate', isValidDate(birthDate), t.invalidFormat);
     need('department', department === DEPARTMENT_OTHER ? filled(departmentOther) : filled(department), t.selectAtLeastOne);
     need('rotationStart', isValidDate(rotationStart), t.invalidFormat);
@@ -329,6 +341,7 @@ export default function SurveyForm({ lang, onLangChange }) {
   }, [
     t, country, employer, employerOther, citizenshipOther, employeeName, birthDate, phones, personalEmail, workEmail,
     department, departmentOther, rotationStart, rotation,
+    positionInConfirmMode, positionConfirmed,
     emailsInConfirmMode, emailsConfirmed,
     personalIdValue, taxIdValue, promStatus, electroStatus, needsPassport, needsTaxId, passportNumber, passportIssueDate,
     passportIssuedBy, passportDeptCode, protocols, electroEducation, electroGroup, electroDate, electroFile,
@@ -436,8 +449,8 @@ export default function SurveyForm({ lang, onLangChange }) {
         employeeName: employeeName.trim(),
         nameEn,
         surnameEn,
-        positionRu,
-        positionEn,
+        positionRu: positionRu.trim(),
+        positionEn: positionEn.trim(),
         birthDate,
 
         department: department === DEPARTMENT_OTHER ? departmentOther.trim() : department,
@@ -693,6 +706,85 @@ export default function SurveyForm({ lang, onLangChange }) {
                     />
                   </div>
                 </Field>
+
+                {/* Должность приходит из отдела кадров — работник её проверяет */}
+                <div className="sm:col-span-2">
+                  {positionInConfirmMode ? (
+                    <Panel tone="accent" className="vd-anim-expand space-y-3">
+                      <div>
+                        <SubHeading className="mb-1">{t.positionBlockTitle}</SubHeading>
+                        <p className="text-[11px] sm:text-xs text-vd-muted">{t.positionPrefilledHint}</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {[
+                          { label: t.positionLabelRu, value: positionRu },
+                          { label: t.positionLabelEn, value: positionEn },
+                        ]
+                          .filter((row) => row.value)
+                          .map((row) => (
+                            <div key={row.label} className="bg-white border border-vd-line px-3 py-2.5 vd-sharp">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-vd-muted mb-0.5">
+                                {row.label}
+                              </div>
+                              <div className="text-[13px] sm:text-sm font-semibold text-vd-navy break-words leading-snug">
+                                {row.value}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+
+                      <div data-field="positionConfirmed">
+                        <OptionCard
+                          checked={positionConfirmed}
+                          onChange={(value) => {
+                            clearErr('positionConfirmed');
+                            setPositionConfirmed(value);
+                          }}
+                          label={t.positionConfirmLabel}
+                          invalid={!!err('positionConfirmed')}
+                        />
+                        {err('positionConfirmed') && (
+                          <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('positionConfirmed')}</p>
+                        )}
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="!px-0"
+                        onClick={() => {
+                          setPositionEditing(true);
+                          setPositionConfirmed(false);
+                          clearErr('positionConfirmed');
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" /> {t.emailsEdit}
+                      </Button>
+                    </Panel>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Field label={t.positionLabelRu} hint={positionPrefilled ? t.positionPrefilledHint : undefined}>
+                        <div data-field="positionRu">
+                          <TextInput
+                            value={positionRu}
+                            onChange={setPositionRu}
+                            placeholder={t.positionPlaceholderRu}
+                          />
+                        </div>
+                      </Field>
+                      <Field label={t.positionLabelEn}>
+                        <div data-field="positionEn">
+                          <TextInput
+                            value={positionEn}
+                            onChange={setPositionEn}
+                            placeholder={t.positionPlaceholderEn}
+                          />
+                        </div>
+                      </Field>
+                    </div>
+                  )}
+                </div>
 
                 <Field label={t.birthDateLabel} required error={err('birthDate')}>
                   <div data-field="birthDate">

@@ -3,10 +3,13 @@
 // без картинок и заливок — они здесь только мешали.
 
 import { useEffect, useState } from 'react';
+import { LOGO_FILE } from '../data/logo.js';
 
 export default function LanguageSplash({ onChoose }) {
   const [ready, setReady] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // Если файла логотипа вдруг нет, покажем название текстом — экран не сломается
+  const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setReady(true), 120);
@@ -24,12 +27,23 @@ export default function LanguageSplash({ onChoose }) {
       style={{ opacity: leaving ? 0 : 1 }}
     >
       <div className="w-full max-w-sm text-center">
-        {/* Название компании — текстом, фирменной типографикой */}
+        {/* Фирменный логотип — звезда и надпись одной картинкой */}
         <div style={{ animation: 'vd-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both' }}>
-          <div className="text-vd-blue font-black text-3xl sm:text-4xl leading-none tracking-tight">VEGA</div>
-          <div className="text-vd-navy font-black text-lg sm:text-xl leading-none tracking-[0.02em] mt-1.5">
-            DEVELOPMENT
-          </div>
+          {logoFailed ? (
+            <>
+              <div className="text-vd-blue font-black text-3xl sm:text-4xl leading-none tracking-tight">VEGA</div>
+              <div className="text-vd-navy font-black text-lg sm:text-xl leading-none tracking-[0.02em] mt-1.5">
+                DEVELOPMENT
+              </div>
+            </>
+          ) : (
+            <img
+              src={LOGO_FILE}
+              alt="Vega Development"
+              onError={() => setLogoFailed(true)}
+              className="h-28 sm:h-32 w-auto max-w-full object-contain mx-auto"
+            />
+          )}
           <div className="mx-auto mt-6 h-0.5 w-12 bg-vd-blue" />
         </div>
 

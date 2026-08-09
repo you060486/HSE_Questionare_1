@@ -70,6 +70,16 @@ export const translations = {
     emailsEdit: 'Исправить',
     emailsBackToConfirm: 'Вернуть подставленные',
 
+    // Подтверждение подставленной должности
+    positionBlockTitle: 'Ваша должность',
+    positionPrefilledHint: 'Должность подставлена из данных отдела кадров. Проверьте и подтвердите',
+    positionConfirmLabel: 'Должность указана верно',
+    positionLabelRu: 'Должность (по-русски)',
+    positionLabelEn: 'Position (на английском)',
+    positionPlaceholderRu: 'Например: Супервайзер по охране труда',
+    positionPlaceholderEn: 'For example: HSE Supervisor',
+    positionConfirmRequired: 'Подтвердите или исправьте должность',
+
     // --- Паспорт ---
     passportTitle: 'Документ, удостоверяющий личность',
     passportComment: 'Нужен, чтобы подать заявку в учебный центр и внести данные в реестр Ростехнадзора',
@@ -271,6 +281,16 @@ export const translations = {
     emailsConfirmLabel: 'Both addresses are correct',
     emailsEdit: 'Correct them',
     emailsBackToConfirm: 'Restore the original ones',
+
+    // Position confirmation
+    positionBlockTitle: 'Your job title',
+    positionPrefilledHint: 'Taken from HR records. Please check and confirm',
+    positionConfirmLabel: 'The job title is correct',
+    positionLabelRu: 'Должность (in Russian)',
+    positionLabelEn: 'Position (in English)',
+    positionPlaceholderRu: 'Например: Супервайзер по охране труда',
+    positionPlaceholderEn: 'For example: HSE Supervisor',
+    positionConfirmRequired: 'Confirm or correct the job title',
 
     // --- Passport ---
     passportTitle: 'Identity document',
