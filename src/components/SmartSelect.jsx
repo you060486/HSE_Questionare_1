@@ -16,9 +16,12 @@ export default function SmartSelect({
   value = [],
   onChange,
   multiple = true,
-  placeholder = 'Нажми и начни печатать',
-  searchPlaceholder = 'Например: б83 или котлы',
-  emptyText = 'Ничего не нашлось. Проверь написание',
+  placeholder = '',
+  searchPlaceholder = '',
+  emptyText = 'Ничего не нашлось. Проверьте написание',
+  multiHint = 'Можно выбрать несколько: написали — выбрали — пишите следующее',
+  doneLabel = 'Готово',
+  removeLabel = 'Убрать',
   chipsLabel,
   invalid = false,
   allowOther = false,
@@ -130,7 +133,7 @@ export default function SmartSelect({
                 <span
                   role="button"
                   tabIndex={-1}
-                  aria-label={`Убрать ${item.code}`}
+                  aria-label={`${removeLabel} ${item.code}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     remove(item.code);
@@ -187,7 +190,7 @@ export default function SmartSelect({
                         setQuery('');
                         inputRef.current?.focus();
                       }}
-                      aria-label="Очистить"
+                      aria-label={removeLabel}
                       className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-vd-muted hover:text-vd-navy"
                     >
                       <X className="w-4 h-4" />
@@ -199,14 +202,10 @@ export default function SmartSelect({
                   onClick={close}
                   className="sm:hidden shrink-0 px-3.5 py-3 bg-vd-navy text-white text-[13px] font-bold vd-sharp"
                 >
-                  Готово
+                  {doneLabel}
                 </button>
               </div>
-              {multiple && (
-                <p className="text-[10px] text-vd-muted mt-2 leading-snug">
-                  Можно выбрать несколько. Написал — выбрал — пиши следующее.
-                </p>
-              )}
+              {multiple && <p className="text-[10px] text-vd-muted mt-2 leading-snug">{multiHint}</p>}
             </div>
 
             {/* Список */}

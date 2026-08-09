@@ -1,10 +1,12 @@
-// Умный поиск по справочникам: понимает "б83", "Б 8.3", "b8.3", "b 8 3" как Б.8.3,
-// а также ищет по словам из наименования.
+// Умный поиск по справочникам.
+// Понимает "б83", "Б 8.3", "b8.3", "b 8 3" как Б.8.3, а "в"/"се" — как категории B/CE.
+// Ищет и по коду, и по словам из наименования.
 
-// Латинские буквы, которые люди пишут вместо кириллических.
-// Одна латинская буква может означать две разные кириллические (B -> Б или В),
-// поэтому раскладываем в несколько вариантов запроса.
-const LATIN_TO_CYRILLIC = {
+// Буквы, которые человек пишет не в том алфавите. Работает в обе стороны:
+// коды литер записаны кириллицей, а категории водительского удостоверения — латиницей,
+// при этом набирают их с той раскладки, которая сейчас включена.
+const LETTER_ALIASES = {
+  // латиница -> кириллица
   A: ['А'],
   B: ['Б', 'В'],
   V: ['В'],
@@ -13,17 +15,48 @@ const LATIN_TO_CYRILLIC = {
   E: ['Е'],
   K: ['К'],
   M: ['М'],
-  H: ['Н'],
+  H: ['Н', 'Х'],
+  N: ['Н'],
   O: ['О'],
   P: ['Р'],
+  R: ['Р'],
   C: ['С'],
+  S: ['С'],
   T: ['Т'],
+  U: ['У'],
   Y: ['У'],
   X: ['Х'],
+  Z: ['З'],
+  I: ['И'],
+  L: ['Л'],
+  F: ['Ф'],
+  // кириллица -> латиница
+  А: ['A'],
+  Б: ['B'],
+  В: ['B', 'V'],
+  Г: ['G'],
+  Д: ['D'],
+  Е: ['E'],
+  К: ['K'],
+  М: ['M'],
+  Н: ['H', 'N'],
+  О: ['O'],
+  Р: ['P', 'R'],
+  С: ['C', 'S'],
+  Т: ['T'],
+  У: ['U', 'Y'],
+  Х: ['X', 'H'],
+  Ц: ['C'],
+  З: ['Z'],
+  И: ['I'],
+  Л: ['L'],
+  П: ['P'],
+  Ф: ['F'],
+  Э: ['E'],
 };
 
-// Те же буквы, но набранные в английской раскладке на русской клавиатуре
-// (человек забыл переключить язык): f -> а, "," -> б, d -> в, u -> г
+// Те же буквы, но набранные в чужой раскладке (человек забыл переключить язык):
+// f -> а, "," -> б, d -> в, u -> г
 const KEYBOARD_TO_CYRILLIC = {
   F: 'А',
   ',': 'Б',
@@ -31,6 +64,10 @@ const KEYBOARD_TO_CYRILLIC = {
   U: 'Г',
   L: 'Д',
 };
+
+// Ограничение на перебор: без него длинный запрос из одних «двусмысленных»
+// букв породил бы тысячи вариантов
+const MAX_VARIANTS = 64;
 
 /** Убирает всё, кроме букв и цифр, и приводит к верхнему регистру: "Б 8.3" -> "Б83" */
 export function normalize(value) {
@@ -41,45 +78,39 @@ export function normalize(value) {
 }
 
 /**
- * Возвращает все правдоподобные варианты написания запроса кириллицей.
- * "b83" -> ["B83", "Б83", "В83"]
+ * Возвращает все правдоподобные варианты написания запроса.
+ * "b83" -> ["B83", "Б83", "В83"],  "се" -> ["СЕ", "CE", "SE", ...]
  */
 export function queryVariants(query) {
   const base = normalize(query);
   if (!base) return [];
 
-  const variants = new Set([base]);
-
-  // Замена латиницы на кириллицу (перебираем все сочетания для первых букв)
-  const expand = (str, index, acc) => {
-    if (index >= str.length) {
-      variants.add(acc);
-      return;
+  let variants = [''];
+  for (const char of base) {
+    const options = LETTER_ALIASES[char] ? [char, ...LETTER_ALIASES[char]] : [char];
+    const next = [];
+    outer: for (const prefix of variants) {
+      for (const option of options) {
+        next.push(prefix + option);
+        if (next.length >= MAX_VARIANTS) break outer;
+      }
     }
-    const char = str[index];
-    const options = LATIN_TO_CYRILLIC[char];
-    if (options) {
-      options.forEach((cyr) => expand(str, index + 1, acc + cyr));
-    }
-    // всегда оставляем и исходный символ
-    expand(str, index + 1, acc + char);
-  };
-  // Ограничиваем перебор: буквы стоят только в начале кода, дальше цифры
-  if (base.length <= 12) expand(base, 0, '');
+    variants = next;
+  }
 
-  // Вариант "забыл переключить раскладку"
+  // Вариант «забыл переключить раскладку»
   const keyboardVariant = base
     .split('')
     .map((char) => KEYBOARD_TO_CYRILLIC[char] || char)
     .join('');
-  variants.add(keyboardVariant);
 
-  return [...variants];
+  // Исходный запрос добавляем всегда: перебор мог оборваться по лимиту
+  return [...new Set([base, keyboardVariant, ...variants])];
 }
 
 /**
  * Оценивает, насколько запись подходит под запрос.
- * Возвращает число: чем больше, тем выше в списке. 0 — не подходит.
+ * Чем больше число, тем выше в списке. 0 — не подходит.
  */
 export function scoreMatch(item, query) {
   const variants = queryVariants(query);
@@ -90,7 +121,8 @@ export function scoreMatch(item, query) {
   const titleWords = String(item.title || '')
     .toUpperCase()
     .split(/[^0-9A-ZА-ЯЁ]+/)
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(normalize);
 
   let best = 0;
   for (const variant of variants) {
@@ -99,9 +131,9 @@ export function scoreMatch(item, query) {
     else if (code.startsWith(variant)) best = Math.max(best, 80);
     else if (code.includes(variant)) best = Math.max(best, 60);
 
-    // поиск по наименованию имеет смысл только для слов от 3 букв
+    // По наименованию ищем только со слова от 3 букв, иначе выдача превращается в кашу
     if (variant.length >= 3) {
-      if (titleWords.some((word) => normalize(word).startsWith(variant))) best = Math.max(best, 40);
+      if (titleWords.some((word) => word.startsWith(variant))) best = Math.max(best, 40);
       else if (title.includes(variant)) best = Math.max(best, 20);
     }
   }
@@ -112,8 +144,8 @@ export function scoreMatch(item, query) {
 export function searchItems(items, query) {
   if (!query || !query.trim()) return items;
   return items
-    .map((item) => ({ item, score: scoreMatch(item, query) }))
+    .map((item, index) => ({ item, index, score: scoreMatch(item, query) }))
     .filter((row) => row.score > 0)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || a.item.code.length - b.item.code.length || a.index - b.index)
     .map((row) => row.item);
 }

@@ -41,14 +41,18 @@ export function SubHeading({ children, className = '' }) {
 /* ------------------------------------------------------------------ */
 /* Обёртка поля: подпись, подсказка, ошибка                            */
 /* ------------------------------------------------------------------ */
-export function Field({ label, hint, required, dim, error, children, className = '' }) {
+export function Field({ label, hint, required, dim, error, optionalMark, children, className = '' }) {
   return (
     <div className={className}>
       {label && (
         <label className={`block text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-1.5 ${dim ? 'text-vd-muted' : 'text-vd-navy'}`}>
           {label}
           {required && <span className="text-vd-blue ml-1">*</span>}
-          {dim && !required && <span className="ml-2 normal-case tracking-normal font-normal text-[10px] sm:text-[11px] text-vd-muted">— если есть</span>}
+          {dim && !required && optionalMark && (
+            <span className="ml-2 normal-case tracking-normal font-normal text-[10px] sm:text-[11px] text-vd-muted">
+              {optionalMark}
+            </span>
+          )}
         </label>
       )}
       {children}
@@ -119,7 +123,7 @@ export function OptionCard({ type = 'checkbox', name, checked, onChange, label, 
 /* ------------------------------------------------------------------ */
 /* Загрузка файла                                                      */
 /* ------------------------------------------------------------------ */
-export function FileInput({ file, onSelect, onClear, label, accept = 'image/*,.pdf', invalid, id }) {
+export function FileInput({ file, onSelect, onClear, label, accept = 'image/*,.pdf', invalid, id, removeLabel = 'Убрать файл' }) {
   return (
     <div className={`border border-dashed p-3 transition-colors vd-sharp ${invalid ? 'vd-invalid' : file ? 'border-vd-blue bg-vd-blue-pale/50' : 'border-vd-line bg-white'}`}>
       {file ? (
@@ -133,7 +137,7 @@ export function FileInput({ file, onSelect, onClear, label, accept = 'image/*,.p
           <button
             type="button"
             onClick={onClear}
-            aria-label="Убрать файл"
+            aria-label={removeLabel}
             className="shrink-0 w-9 h-9 flex items-center justify-center text-vd-muted hover:text-red-600 hover:bg-red-50 transition-colors vd-sharp"
           >
             <Trash2 className="w-4 h-4" />
@@ -162,7 +166,7 @@ export function FileInput({ file, onSelect, onClear, label, accept = 'image/*,.p
 }
 
 /* Загрузка нескольких файлов */
-export function MultiFileInput({ files = [], onAdd, onRemove, label, accept = 'image/*,.pdf,.doc,.docx', id }) {
+export function MultiFileInput({ files = [], onAdd, onRemove, label, accept = 'image/*,.pdf,.doc,.docx', id, removeLabel = 'Убрать файл' }) {
   return (
     <div className="space-y-2">
       <label
@@ -191,7 +195,7 @@ export function MultiFileInput({ files = [], onAdd, onRemove, label, accept = 'i
               <button
                 type="button"
                 onClick={() => onRemove(index)}
-                aria-label="Убрать файл"
+                aria-label={removeLabel}
                 className="shrink-0 w-8 h-8 flex items-center justify-center text-vd-muted hover:text-red-600 transition-colors"
               >
                 <X className="w-4 h-4" />

@@ -70,7 +70,7 @@ export default function LanguageSplash({ onChoose }) {
             pointerEvents: stage === 1 ? 'auto' : 'none',
           }}
         >
-          <p className="text-white/60 text-[10px] sm:text-[11px] vd-eyebrow mb-5">Выбери язык / Choose language</p>
+          <p className="text-white/60 text-[10px] sm:text-[11px] vd-eyebrow mb-5">Выберите язык / Choose language</p>
 
           <div className="space-y-3">
             {[

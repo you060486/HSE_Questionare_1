@@ -75,9 +75,11 @@ export function buildSurveyDoc(payload, t) {
   // --- Высота и ОЗП ---
   section(t.heightSafety);
   row('Статус', payload.heightStatus);
+  if (payload.heightPhotoAttached) row(t.photoTitleHeight, 'приложена');
 
   section(t.confinedSafety);
   row('Статус', payload.confinedStatus);
+  if (payload.confinedPhotoAttached) row(t.photoTitleConfined, 'приложена');
 
   // --- Транспорт ---
   section(t.drivingSafety);
@@ -91,7 +93,9 @@ export function buildSurveyDoc(payload, t) {
   // --- Другие обучения ---
   if (payload.trainings && payload.trainings.length) {
     section(t.otherSafety);
-    const items = payload.trainings.map((tr) => `<li>${escapeHtml(tr.title)}</li>`).join('');
+    const items = payload.trainings
+      .map((tr) => `<li>${escapeHtml(tr.title)}${tr.issueDate ? ` — ${escapeHtml(t.otherTrainingDate)}: ${escapeHtml(tr.issueDate)}` : ''}</li>`)
+      .join('');
     rowHtml(t.otherSafety, `<ul>${items}</ul>`);
   }
 

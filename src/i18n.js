@@ -1,53 +1,62 @@
-// Все тексты анкеты. Формулировки простые и человеческие, но без панибратства:
-// работник должен понять вопрос с первого раза и ответить точно.
+// Все тексты анкеты.
+// Русский — только на «Вы». Формулировки простые и человеческие,
+// но профессиональные: работник должен понять вопрос с первого раза и ответить точно.
 
 export const translations = {
   ru: {
     // --- Заставка ---
     splashTitle: 'Анкета нового работника',
-    splashSubtitle: 'Выбери язык, на котором тебе удобно заполнять',
+    splashSubtitle: 'Выберите язык, на котором Вам удобно заполнять',
     splashRu: 'Русский',
     splashEn: 'English',
-    splashHint: 'Язык можно поменять в любой момент — переключатель вверху страницы',
+    splashChoose: 'Выберите язык / Choose language',
+    splashSubRu: 'Продолжить на русском',
+    splashSubEn: 'Continue in English',
+    splashHint: 'Язык можно поменять в любой момент',
 
     // --- Шапка ---
     title: 'Анкета нового работника',
     subtitle: 'Охрана труда и промышленная безопасность',
     intro:
-      'Заполнение занимает около 5 минут. Данные нужны, чтобы понять, какое обучение тебе потребуется, и вовремя его организовать.',
+      'Заполнение занимает около 5 минут. Данные нужны, чтобы определить, какое обучение Вам потребуется, и организовать его вовремя.',
     progressLabel: 'Заполнено',
 
     // --- Выбор сотрудника ---
-    chooseEmployee: 'Найди себя в списке',
-    chooseEmployeeHint: 'Часть полей заполнится автоматически — тебе останется только проверить',
-    choosePlaceholder: 'Выбери себя',
-    manualEntry: 'Меня нет в списке — заполню сам',
+    chooseEmployee: 'Найдите себя в списке',
+    chooseEmployeeHint: 'Часть полей заполнится автоматически — Вам останется только проверить',
+    choosePlaceholder: 'Выберите себя',
+    manualEntry: 'Меня нет в списке — заполню вручную',
 
     // --- Общая информация ---
-    generalInfo: 'О тебе',
+    generalInfo: 'О Вас',
     employerLabel: 'Основное место работы',
     employerOtherPlaceholder: 'Название организации',
     citizenshipLabel: 'Гражданство',
-    citizenshipOtherLabel: 'Укажи страну',
-    citizenshipOtherPlaceholder: 'Например: Узбекистан',
-    citizenshipHint: 'От гражданства зависит, какие документы у тебя спросят дальше',
+    citizenshipOtherLabel: 'Укажите страну',
+    citizenshipOtherPlaceholder: 'Например: Австралия',
+    citizenshipHint: 'От гражданства зависит, какие документы Вы будете указывать дальше',
     fullName: 'Фамилия, имя и отчество',
     fullNamePlaceholder: 'Иванов Иван Иванович',
     birthDateLabel: 'Дата рождения',
     datePlaceholder: 'ДД.ММ.ГГГГ',
 
     // --- Контакты ---
-    contactsTitle: 'Как с тобой связаться',
+    contactsTitle: 'Как с Вами связаться',
     phoneLabel: 'Телефон',
-    phoneLabelMain: 'Основной телефон',
-    phoneLabelExtra: 'Дополнительный телефон',
     phoneAdd: 'Добавить ещё телефон',
-    phoneHint: 'Хотя бы один номер обязателен. Добавь второй, если на первом бываешь недоступен',
+    phoneHint: 'Хотя бы один номер обязателен. Добавьте второй, если на первом бываете недоступны',
     personalEmailLabel: 'Личная почта',
     personalEmailPlaceholder: 'example@mail.ru',
     workEmailLabel: 'Рабочая почта',
-    workEmailHint: 'Мы подставили её автоматически — проверь, всё ли верно, и поправь при необходимости',
-    checkPrefilled: 'Проверь, что подставилось верно',
+    workEmailHint: 'Подставлена автоматически. Проверьте и при необходимости исправьте',
+    personalEmailHint: 'Подставлена из данных отдела кадров. Проверьте и при необходимости исправьте',
+
+    // Подтверждение подставленных почт
+    emailsBlockTitle: 'Ваши адреса почты',
+    emailsPrefilledHint: 'Оба адреса подставлены автоматически. Проверьте их и подтвердите',
+    emailsConfirmLabel: 'Обе почты указаны верно',
+    emailsEdit: 'Исправить',
+    emailsBackToConfirm: 'Вернуть подставленные',
 
     // --- Паспорт ---
     passportTitle: 'Документ, удостоверяющий личность',
@@ -56,7 +65,7 @@ export const translations = {
     passportIssuedByPlaceholder: 'Название органа, выдавшего документ',
     passportIssueDate: 'Дата выдачи',
     passportCode: 'Код подразделения',
-    passportOptionalNote: 'Эти поля заполняются, только если такие данные есть в твоём документе',
+    passportOptionalNote: 'Эти поля заполняются, только если такие данные есть в Вашем документе',
 
     // --- Статусы ---
     statusHave: 'Есть действующее удостоверение',
@@ -64,56 +73,60 @@ export const translations = {
     statusDontNeed: 'Не нужно по моей работе',
     statusUnknown: 'Пока не знаю',
     unknownWarning:
-      'Уточни у своего руководителя и посмотри должностную инструкцию. С ответом «пока не знаю» анкету отправить не получится.',
+      'Уточните у руководителя и посмотрите должностную инструкцию. С ответом «пока не знаю» анкету отправить не получится.',
 
     // --- 1. Промышленная безопасность ---
     promSafety: 'Промышленная безопасность',
     promSubtitle: 'Аттестация Ростехнадзора',
     protocolsTitle: 'Протоколы аттестации',
-    protocolsHint: 'Добавь каждый протокол отдельно. В одном протоколе может быть несколько областей аттестации',
+    protocolsHint: 'Добавьте каждый протокол отдельно. В одном протоколе может быть несколько областей аттестации',
     protocol: 'Протокол',
     protocolNumber: 'Номер протокола',
     protocolNumberPlaceholder: 'Например: 24-15-1234',
     protocolDate: 'Дата протокола',
     protocolAreas: 'Области аттестации (литеры)',
-    protocolAreasPlaceholder: 'Нажми и начни печатать: б83',
+    protocolAreasPlaceholder: 'Нажмите и начните печатать: б83',
     protocolAreasSearch: 'Код или название: б83, Б 8.3, котлы',
-    protocolAreasHint: 'Выбери все области, которые указаны в этом протоколе',
+    protocolAreasHint: 'Выберите все области, которые указаны в этом протоколе',
     protocolFile: 'Скан или фото протокола',
     addMoreProtocols: 'Добавить ещё протокол',
-    protocolLimit: 'Больше 10 протоколов в анкету не поместится. Остальные принесёшь в отдел охраны труда',
+    protocolLimit: 'Больше 10 протоколов в анкету не поместится. Остальные принесите в отдел охраны труда',
 
     // --- 2. Электробезопасность ---
     electroSafety: 'Электробезопасность',
     electroSubtitle: 'II группа и выше',
     electroWarning: 'Нужна тем, кто работает с электроинструментом',
     education: 'Образование',
-    selectEducation: 'Выбери из списка',
+    selectEducation: 'Выберите из списка',
     eduBasic: 'Основное общее (9 классов)',
     eduSecondary: 'Среднее общее (11 классов)',
     eduVocational: 'Среднее профессиональное или высшее техническое',
     eduHigher: 'Высшее техническое в области электроэнергетики',
     specifyGroup: 'Группа по электробезопасности',
-    selectGroup: 'Выбери группу',
+    selectGroup: 'Выберите группу',
     dateOfCheck: 'Дата последней проверки знаний',
     electroFile: 'Скан или фото удостоверения',
 
     // --- 3. Работы на высоте ---
     heightSafety: 'Работы на высоте',
     heightClimb: 'Буду подниматься на высоту',
-    heightApprove: 'Буду согласовывать документы (ППР, наряды-допуски, планы эвакуации) или войду в комиссию по проверке знаний',
+    heightApprove:
+      'Буду согласовывать документы (ППР, наряды-допуски, планы эвакуации) или войду в комиссию по проверке знаний',
     heightWontDo: 'С высотой не работаю',
 
     // --- 4. Замкнутые пространства ---
     confinedSafety: 'Работы в замкнутом пространстве',
     confinedWork: 'Буду выполнять работы в замкнутом пространстве',
-    confinedApprove: 'Буду согласовывать документы (ППР, наряды-допуски, планы эвакуации) или войду в комиссию по проверке знаний',
+    confinedApprove:
+      'Буду согласовывать документы (ППР, наряды-допуски, планы эвакуации) или войду в комиссию по проверке знаний',
     confinedWontDo: 'В замкнутых пространствах не работаю',
 
-    // --- Фотография ---
-    photoTitle: 'Фотография для удостоверения',
+    // --- Фотографии на удостоверения ---
+    photoTitleHeight: 'Фотография на удостоверение по работам на высоте',
+    photoTitleConfined: 'Фотография на удостоверение по замкнутым пространствам',
     photoComment:
-      'Нужна для допусков на высоту и в замкнутые пространства. Подойдёт обычное фото на светлом фоне: лицо крупно, как на паспорт',
+      'Подойдёт обычное фото на светлом фоне: лицо крупно, как на паспорт',
+    photoSeparateNote: 'На каждое удостоверение нужна отдельная фотография — приложите свою в каждый раздел',
     photoUpload: 'Загрузить фотографию',
 
     // --- 5. Транспорт ---
@@ -125,34 +138,37 @@ export const translations = {
     licenceNumberPlaceholder: '99 99 999999',
     licenceDate: 'Дата выдачи',
     licenceCategories: 'Открытые категории',
-    licenceCategoriesPlaceholder: 'Нажми и выбери: B, C, CE',
-    licenceCategoriesSearch: 'Категория или тип техники',
-    licenceCategoriesHint: 'Отметь все категории, открытые в твоём удостоверении',
+    licenceCategoriesPlaceholder: 'Нажмите и выберите: B, C, CE',
+    licenceCategoriesSearch: 'Категория или тип техники: в, се, автобус',
+    licenceCategoriesHint: 'Отметьте все категории, открытые в Вашем удостоверении',
     licenceFile: 'Скан или фото удостоверения (обе стороны)',
 
     // --- 6. Другие обучения ---
     otherSafety: 'Другие обучения',
     otherLabel:
-      'Отметь обучения, которые ты уже проходил и которые остаются действующими на новом месте работы. Если ничего нет — просто пропусти раздел',
+      'Отметьте обучения, которые Вы уже проходили и которые остаются действующими на новом месте работы. Если таких нет — пропустите раздел',
     otherTrainingTitle: 'Вид обучения',
-    otherTrainingPlaceholder: 'Нажми и начни печатать: первая помощь',
+    otherTrainingPlaceholder: 'Нажмите и начните печатать: первая помощь',
     otherTrainingSearch: 'Название обучения',
-    otherTrainingCustom: 'Впиши название обучения',
+    otherTrainingCustom: 'Впишите название обучения',
     otherTrainingCustomPlaceholder: 'Как написано в удостоверении',
+    otherTrainingDate: 'Дата выдачи',
+    otherTrainingDateHint: 'Дата, указанная в удостоверении или протоколе',
     otherFilesLabel: 'Приложить удостоверение',
     addMoreTrainings: 'Добавить ещё обучение',
 
     // --- Отправка ---
     consentText:
-      'Я согласен на обработку моих персональных данных (152-ФЗ) и на передачу их в учебный центр, а также в реестры Минтруда и Ростехнадзора.',
+      'Я даю согласие на обработку моих персональных данных (152-ФЗ) и на передачу их в учебный центр, а также в реестры Минтруда и Ростехнадзора.',
     submitBtn: 'Отправить анкету',
     submitGenerating: 'Отправляем…',
-    submitError: 'Не получилось отправить. Проверь интернет и попробуй ещё раз. Если не выходит — напиши в отдел охраны труда',
-    validationError: 'Проверь выделенные поля — там чего-то не хватает',
+    submitError:
+      'Не получилось отправить. Проверьте интернет и попробуйте ещё раз. Если не получится — напишите в отдел охраны труда',
+    validationError: 'Проверьте выделенные поля — там чего-то не хватает',
 
     // --- Успех ---
     modalSuccessTitle: 'Спасибо',
-    modalSuccessSubtitle: 'Анкета отправлена. Если потребуется что-то уточнить, мы свяжемся с тобой',
+    modalSuccessSubtitle: 'Анкета отправлена. Если потребуется что-то уточнить, мы свяжемся с Вами',
     modalSuccessBtn: 'Закрыть',
 
     // --- Служебное ---
@@ -160,14 +176,21 @@ export const translations = {
     fileHint: 'Фото с телефона тоже подойдёт, главное — чтобы текст читался',
     notSpecified: 'Не указано',
     remove: 'Удалить',
-    required: 'Заполни это поле',
-    invalidFormat: 'Проверь формат',
-    fileRequired: 'Приложи файл',
-    selectAtLeastOne: 'Выбери хотя бы один вариант',
+    required: 'Заполните это поле',
+    invalidFormat: 'Проверьте формат',
+    fileRequired: 'Приложите файл',
+    selectAtLeastOne: 'Выберите хотя бы один вариант',
+    confirmRequired: 'Подтвердите или исправьте адреса',
+    searchMultiHint: 'Можно выбрать несколько: написали — выбрали — пишите следующее',
+    searchEmpty: 'Ничего не нашлось. Проверьте написание',
+    searchDone: 'Готово',
+    optionalMark: '— если есть',
     mailFileNameProtocol: 'протокол_ПБ',
     mailFileNameElectro: 'удостоверение_ЭБ',
     mailFileNameLicence: 'водительское',
     mailFileNameOther: 'обучение',
+    mailFileNamePhotoHeight: 'фото_высота',
+    mailFileNamePhotoConfined: 'фото_ОЗП',
   },
 
   en: {
@@ -176,20 +199,23 @@ export const translations = {
     splashSubtitle: 'Choose the language you prefer',
     splashRu: 'Русский',
     splashEn: 'English',
-    splashHint: 'You can switch the language at any time using the toggle at the top',
+    splashChoose: 'Выберите язык / Choose language',
+    splashSubRu: 'Продолжить на русском',
+    splashSubEn: 'Continue in English',
+    splashHint: 'You can switch the language at any time',
 
     // --- Header ---
     title: 'New Employee Questionnaire',
     subtitle: 'Occupational Health and Industrial Safety',
     intro:
-      'This takes about 5 minutes. We need this information to work out which training you will need and arrange it in good time.',
+      'This takes about 5 minutes. We need this information to determine which training you will need and to arrange it in good time.',
     progressLabel: 'Completed',
 
     // --- Employee selection ---
     chooseEmployee: 'Find yourself in the list',
     chooseEmployeeHint: 'Some fields will be filled in automatically — you only need to check them',
     choosePlaceholder: 'Select your name',
-    manualEntry: 'I am not on the list — I will fill it in myself',
+    manualEntry: 'I am not on the list — I will fill it in manually',
 
     // --- General ---
     generalInfo: 'About you',
@@ -197,8 +223,8 @@ export const translations = {
     employerOtherPlaceholder: 'Company name',
     citizenshipLabel: 'Citizenship',
     citizenshipOtherLabel: 'Specify the country',
-    citizenshipOtherPlaceholder: 'For example: Uzbekistan',
-    citizenshipHint: 'Your citizenship determines which documents we will ask for next',
+    citizenshipOtherPlaceholder: 'For example: Australia',
+    citizenshipHint: 'Your citizenship determines which documents you will be asked for next',
     fullName: 'Full name',
     fullNamePlaceholder: 'John Michael Smith',
     birthDateLabel: 'Date of birth',
@@ -207,15 +233,19 @@ export const translations = {
     // --- Contacts ---
     contactsTitle: 'How to reach you',
     phoneLabel: 'Phone',
-    phoneLabelMain: 'Main phone',
-    phoneLabelExtra: 'Additional phone',
     phoneAdd: 'Add another phone',
     phoneHint: 'At least one number is required. Add a second one if the first is not always available',
     personalEmailLabel: 'Personal email',
     personalEmailPlaceholder: 'example@mail.com',
     workEmailLabel: 'Work email',
-    workEmailHint: 'We filled this in automatically — please check it and correct if needed',
-    checkPrefilled: 'Please check the pre-filled value',
+    workEmailHint: 'Filled in automatically. Please check and correct if needed',
+    personalEmailHint: 'Taken from HR records. Please check and correct if needed',
+
+    emailsBlockTitle: 'Your email addresses',
+    emailsPrefilledHint: 'Both addresses were filled in automatically. Please check and confirm them',
+    emailsConfirmLabel: 'Both addresses are correct',
+    emailsEdit: 'Correct them',
+    emailsBackToConfirm: 'Restore the original ones',
 
     // --- Passport ---
     passportTitle: 'Identity document',
@@ -269,19 +299,22 @@ export const translations = {
     // --- 3. Work at height ---
     heightSafety: 'Work at height',
     heightClimb: 'I will be working at height',
-    heightApprove: 'I will approve documents (work plans, permits, evacuation plans) or sit on the knowledge review board',
+    heightApprove:
+      'I will approve documents (work plans, permits, evacuation plans) or sit on the knowledge review board',
     heightWontDo: 'I do not work at height',
 
     // --- 4. Confined spaces ---
     confinedSafety: 'Work in confined spaces',
     confinedWork: 'I will be working in confined spaces',
-    confinedApprove: 'I will approve documents (work plans, permits, evacuation plans) or sit on the knowledge review board',
+    confinedApprove:
+      'I will approve documents (work plans, permits, evacuation plans) or sit on the knowledge review board',
     confinedWontDo: 'I do not work in confined spaces',
 
-    // --- Photo ---
-    photoTitle: 'Photo for your permit card',
-    photoComment:
-      'Required for work at height and confined space permits. A normal photo on a light background will do: face close-up, passport style',
+    // --- Photos ---
+    photoTitleHeight: 'Photo for the work-at-height permit card',
+    photoTitleConfined: 'Photo for the confined-space permit card',
+    photoComment: 'A normal photo on a light background will do: face close-up, passport style',
+    photoSeparateNote: 'Each permit card needs its own photo — attach one in each section',
     photoUpload: 'Upload a photo',
 
     // --- 5. Driving ---
@@ -294,19 +327,21 @@ export const translations = {
     licenceDate: 'Date of issue',
     licenceCategories: 'Categories held',
     licenceCategoriesPlaceholder: 'Tap and select: B, C, CE',
-    licenceCategoriesSearch: 'Category or vehicle type',
+    licenceCategoriesSearch: 'Category or vehicle type: b, ce, bus',
     licenceCategoriesHint: 'Select every category open on your licence',
     licenceFile: 'Scan or photo of the licence (both sides)',
 
     // --- 6. Other training ---
     otherSafety: 'Other training',
     otherLabel:
-      'Select the training you have already completed that stays valid at a new employer. If you have none, simply skip this section',
+      'Select the training you have already completed that stays valid at a new employer. If you have none, skip this section',
     otherTrainingTitle: 'Type of training',
     otherTrainingPlaceholder: 'Tap and start typing: first aid',
     otherTrainingSearch: 'Training name',
     otherTrainingCustom: 'Enter the name of the training',
     otherTrainingCustomPlaceholder: 'As written on your certificate',
+    otherTrainingDate: 'Date of issue',
+    otherTrainingDateHint: 'The date shown on the certificate or protocol',
     otherFilesLabel: 'Attach the certificate',
     addMoreTrainings: 'Add another training',
 
@@ -332,10 +367,17 @@ export const translations = {
     invalidFormat: 'Check the format',
     fileRequired: 'Please attach a file',
     selectAtLeastOne: 'Select at least one option',
+    confirmRequired: 'Confirm or correct the addresses',
+    searchMultiHint: 'You can pick several: type, select, then type the next one',
+    searchEmpty: 'Nothing found. Check the spelling',
+    searchDone: 'Done',
+    optionalMark: '— if available',
     mailFileNameProtocol: 'protocol_IndSafety',
     mailFileNameElectro: 'cert_ElecSafety',
     mailFileNameLicence: 'driving_licence',
     mailFileNameOther: 'training',
+    mailFileNamePhotoHeight: 'photo_height',
+    mailFileNamePhotoConfined: 'photo_confined',
   },
 };
 

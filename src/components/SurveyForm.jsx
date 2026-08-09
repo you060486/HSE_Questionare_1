@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Send, Loader2, CheckCircle2, Plus, Globe } from 'lucide-react';
+import { Send, Loader2, CheckCircle2, Plus, Globe, Pencil } from 'lucide-react';
 
 import { translations } from '../i18n.js';
 import { COUNTRIES, DEFAULT_COUNTRY_ID, getCountry } from '../data/countries.js';
@@ -33,7 +33,7 @@ const ELECTRO_GROUPS = ['I', 'II', 'III', 'IV', 'V'];
 
 const newId = () => Math.random().toString(36).slice(2, 10);
 const emptyProtocol = () => ({ id: newId(), number: '', date: '', areas: [], file: null });
-const emptyTraining = () => ({ id: newId(), code: '', customTitle: '', files: [] });
+const emptyTraining = () => ({ id: newId(), code: '', customTitle: '', issueDate: '', files: [] });
 
 const LICENCE_ITEMS = LICENCE_CATEGORIES.map((c) => ({ code: c.code, title: c.title, group: '' }));
 
@@ -57,6 +57,10 @@ export default function SurveyForm({ lang, onLangChange }) {
   const [phones, setPhones] = useState([{ id: newId(), value: '' }]);
   const [personalEmail, setPersonalEmail] = useState('');
   const [workEmail, setWorkEmail] = useState('');
+  // Если обе почты подставились из ссылки, показываем их только на подтверждение
+  const [emailsPrefilled, setEmailsPrefilled] = useState(false);
+  const [emailsConfirmed, setEmailsConfirmed] = useState(false);
+  const [emailsEditing, setEmailsEditing] = useState(false);
 
   // Идентификаторы: ключ зависит от гражданства (СНИЛС / ИИН / личный номер)
   const [personalIdValue, setPersonalIdValue] = useState('');
@@ -89,7 +93,10 @@ export default function SurveyForm({ lang, onLangChange }) {
   const [confinedWork, setConfinedWork] = useState(false);
   const [confinedApprove, setConfinedApprove] = useState(false);
   const [confinedWontDo, setConfinedWontDo] = useState(false);
-  const [employeePhoto, setEmployeePhoto] = useState(null);
+
+  // На каждое удостоверение нужна своя фотография
+  const [heightPhoto, setHeightPhoto] = useState(null);
+  const [confinedPhoto, setConfinedPhoto] = useState(null);
 
   const [driveWill, setDriveWill] = useState(false);
   const [driveWont, setDriveWont] = useState(false);
@@ -129,21 +136,28 @@ export default function SurveyForm({ lang, onLangChange }) {
 
   const handleEmployeeSelect = (index) => {
     setSelectedEmpIndex(index);
+    setEmailsConfirmed(false);
+    setEmailsEditing(false);
+
     if (index === '-1' || index === '') {
       setEmployeeName('');
       setPersonalEmail('');
       setWorkEmail('');
+      setEmailsPrefilled(false);
       setNameEn('');
       setSurnameEn('');
       setPositionRu('');
       setPositionEn('');
       return;
     }
+
     const emp = sessionEmployees[index];
     if (!emp) return;
     setEmployeeName(emp.fio || '');
     setPersonalEmail(emp.email || '');
     setWorkEmail(emp.workEmail || '');
+    // Режим подтверждения включаем, только если подставились обе почты
+    setEmailsPrefilled(Boolean(emp.email && emp.workEmail));
     setNameEn(emp.nameEn || '');
     setSurnameEn(emp.surnameEn || '');
     setPositionRu(emp.posRu || '');
@@ -156,8 +170,11 @@ export default function SurveyForm({ lang, onLangChange }) {
   const needsTraining = ['have', 'need'].includes(promStatus) || ['have', 'need'].includes(electroStatus);
   const needsPassport = needsTraining;
   const needsTaxId = needsTraining && !!country.taxId;
-  const needsPhoto = heightClimb || heightApprove || confinedWork || confinedApprove;
+  const needsHeightPhoto = heightClimb || heightApprove;
+  const needsConfinedPhoto = confinedWork || confinedApprove;
   const hasUnknown = promStatus === 'unknown' || electroStatus === 'unknown';
+  // Почты показываем на подтверждение, пока человек не решил их править
+  const emailsInConfirmMode = emailsPrefilled && !emailsEditing;
 
   // Гражданство сменилось — идентификаторы и документ больше не подходят
   const prevCountry = useRef(countryId);
@@ -231,8 +248,14 @@ export default function SurveyForm({ lang, onLangChange }) {
     need('employeeName', filled(employeeName) && employeeName.trim().split(/\s+/).length >= 2);
     need('birthDate', isValidDate(birthDate), t.invalidFormat);
     need('phone_0', filled(phones[0]?.value) && phones[0].value.replace(/\D/g, '').length >= 10, t.invalidFormat);
-    need('personalEmail', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail.trim()), t.invalidFormat);
-    if (filled(workEmail)) need('workEmail', /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(workEmail.trim()), t.invalidFormat);
+    const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+    if (emailsInConfirmMode) {
+      // Обе почты подставлены — достаточно подтвердить галочкой
+      need('emailsConfirmed', emailsConfirmed, t.confirmRequired);
+    } else {
+      need('personalEmail', isEmail(personalEmail), t.invalidFormat);
+      if (filled(workEmail)) need('workEmail', isEmail(workEmail), t.invalidFormat);
+    }
 
     const pid = country.personalId;
     if (pid && pid.required) {
@@ -274,8 +297,10 @@ export default function SurveyForm({ lang, onLangChange }) {
     }
 
     need('height', heightClimb || heightApprove || heightWontDo, t.selectAtLeastOne);
+    if (needsHeightPhoto) need('heightPhoto', !!heightPhoto, t.fileRequired);
+
     need('confined', confinedWork || confinedApprove || confinedWontDo, t.selectAtLeastOne);
-    if (needsPhoto) need('photo', !!employeePhoto, t.fileRequired);
+    if (needsConfinedPhoto) need('confinedPhoto', !!confinedPhoto, t.fileRequired);
 
     need('drive', driveWill || driveWont, t.selectAtLeastOne);
     if (driveWill) {
@@ -288,6 +313,7 @@ export default function SurveyForm({ lang, onLangChange }) {
     trainings.forEach((item) => {
       need(`training_${item.id}_code`, filled(item.code), t.selectAtLeastOne);
       if (item.code === TRAINING_OTHER_CODE) need(`training_${item.id}_custom`, filled(item.customTitle));
+      need(`training_${item.id}_date`, isValidDate(item.issueDate), t.invalidFormat);
     });
 
     need('consent', consent, t.required);
@@ -295,9 +321,11 @@ export default function SurveyForm({ lang, onLangChange }) {
     return list;
   }, [
     t, country, employer, employerOther, citizenshipOther, employeeName, birthDate, phones, personalEmail, workEmail,
+    emailsInConfirmMode, emailsConfirmed,
     personalIdValue, taxIdValue, promStatus, electroStatus, needsPassport, needsTaxId, passportNumber, passportIssueDate,
     passportIssuedBy, passportDeptCode, protocols, electroEducation, electroGroup, electroDate, electroFile,
-    heightClimb, heightApprove, heightWontDo, confinedWork, confinedApprove, confinedWontDo, needsPhoto, employeePhoto,
+    heightClimb, heightApprove, heightWontDo, needsHeightPhoto, heightPhoto,
+    confinedWork, confinedApprove, confinedWontDo, needsConfinedPhoto, confinedPhoto,
     driveWill, driveWont, licenceNumber, licenceDate, licenceCategories, licenceFile, trainings, consent,
   ]);
 
@@ -386,6 +414,7 @@ export default function SurveyForm({ lang, onLangChange }) {
             item.code === TRAINING_OTHER_CODE
               ? item.customTitle.trim()
               : TRAININGS.find((x) => x.code === item.code)?.title || item.code,
+          issueDate: item.issueDate,
         }));
 
       const payload = {
@@ -437,11 +466,13 @@ export default function SurveyForm({ lang, onLangChange }) {
         heightApprove,
         heightWontDo,
         heightStatus: heightStatusText(),
+        heightPhotoAttached: needsHeightPhoto && !!heightPhoto,
 
         confinedWork,
         confinedApprove,
         confinedWontDo,
         confinedStatus: confinedStatusText(),
+        confinedPhotoAttached: needsConfinedPhoto && !!confinedPhoto,
 
         driveWill,
         driveWont,
@@ -469,7 +500,8 @@ export default function SurveyForm({ lang, onLangChange }) {
         protocols.forEach((p, index) => attach(p.file, `${safeName}_${t.mailFileNameProtocol}_${index + 1}`));
       }
       if (electroStatus === 'have') attach(electroFile, `${safeName}_${t.mailFileNameElectro}`);
-      if (needsPhoto) attach(employeePhoto, `photo_${safeName}`);
+      if (needsHeightPhoto) attach(heightPhoto, `${t.mailFileNamePhotoHeight}_${safeName}`);
+      if (needsConfinedPhoto) attach(confinedPhoto, `${t.mailFileNamePhotoConfined}_${safeName}`);
       if (driveWill) attach(licenceFile, `${safeName}_${t.mailFileNameLicence}`);
 
       trainings.forEach((item) => {
@@ -580,7 +612,7 @@ export default function SurveyForm({ lang, onLangChange }) {
 
         {formVisible && (
           <form ref={formRef} onSubmit={handleSubmit} noValidate className="space-y-9 sm:space-y-12">
-            {/* ============================= О тебе ============================ */}
+            {/* ============================== О Вас ============================= */}
             <Section number="01" title={t.generalInfo}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Field label={t.employerLabel} required error={err('employer')}>
@@ -657,6 +689,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                     label={lang === 'ru' ? pid.labelRu : pid.labelEn}
                     required={pid.required}
                     dim={!pid.required}
+                    optionalMark={t.optionalMark}
                     hint={lang === 'ru' ? pid.hintRu : pid.hintEn}
                     error={err('personalId')}
                   >
@@ -730,36 +763,95 @@ export default function SurveyForm({ lang, onLangChange }) {
                 </div>
               </Field>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label={t.personalEmailLabel} required error={err('personalEmail')}>
-                  <div data-field="personalEmail">
-                    <TextInput
-                      type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      autoCapitalize="off"
-                      value={personalEmail}
-                      onChange={bind('personalEmail', setPersonalEmail)}
-                      placeholder={t.personalEmailPlaceholder}
-                      invalid={!!err('personalEmail')}
-                    />
+              {emailsInConfirmMode ? (
+                /* Обе почты подставлены из данных отдела кадров — их достаточно подтвердить */
+                <Panel tone="accent" className="vd-anim-expand space-y-3.5" data-field="emailsConfirmed">
+                  <div>
+                    <SubHeading className="mb-1">{t.emailsBlockTitle}</SubHeading>
+                    <p className="text-[11px] sm:text-xs text-vd-muted">{t.emailsPrefilledHint}</p>
                   </div>
-                </Field>
 
-                <Field label={t.workEmailLabel} hint={t.workEmailHint} error={err('workEmail')}>
-                  <div data-field="workEmail">
-                    <TextInput
-                      type="email"
-                      inputMode="email"
-                      autoCapitalize="off"
-                      value={workEmail}
-                      onChange={bind('workEmail', setWorkEmail)}
-                      placeholder="name.surname@vegadevelopment.com"
-                      invalid={!!err('workEmail')}
-                    />
+                  <div className="space-y-2">
+                    {[
+                      { label: t.personalEmailLabel, value: personalEmail },
+                      { label: t.workEmailLabel, value: workEmail },
+                    ].map((row) => (
+                      <div key={row.label} className="bg-white border border-vd-line px-3 py-2.5 vd-sharp">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-vd-muted mb-0.5">
+                          {row.label}
+                        </div>
+                        <div className="text-[13px] sm:text-sm font-semibold text-vd-navy break-all leading-snug">
+                          {row.value}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </Field>
-              </div>
+
+                  <div data-field="emailsConfirmed">
+                    <OptionCard
+                      checked={emailsConfirmed}
+                      onChange={(value) => {
+                        clearErr('emailsConfirmed');
+                        setEmailsConfirmed(value);
+                      }}
+                      label={t.emailsConfirmLabel}
+                      invalid={!!err('emailsConfirmed')}
+                    />
+                    {err('emailsConfirmed') && (
+                      <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('emailsConfirmed')}</p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="!px-0"
+                    onClick={() => {
+                      setEmailsEditing(true);
+                      setEmailsConfirmed(false);
+                      clearErr('emailsConfirmed');
+                    }}
+                  >
+                    <Pencil className="w-4 h-4" /> {t.emailsEdit}
+                  </Button>
+                </Panel>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field
+                    label={t.personalEmailLabel}
+                    required
+                    hint={emailsPrefilled ? t.personalEmailHint : undefined}
+                    error={err('personalEmail')}
+                  >
+                    <div data-field="personalEmail">
+                      <TextInput
+                        type="email"
+                        inputMode="email"
+                        autoComplete="email"
+                        autoCapitalize="off"
+                        value={personalEmail}
+                        onChange={bind('personalEmail', setPersonalEmail)}
+                        placeholder={t.personalEmailPlaceholder}
+                        invalid={!!err('personalEmail')}
+                      />
+                    </div>
+                  </Field>
+
+                  <Field label={t.workEmailLabel} hint={t.workEmailHint} error={err('workEmail')}>
+                    <div data-field="workEmail">
+                      <TextInput
+                        type="email"
+                        inputMode="email"
+                        autoCapitalize="off"
+                        value={workEmail}
+                        onChange={bind('workEmail', setWorkEmail)}
+                        placeholder="name.surname@vegadevelopment.com"
+                        invalid={!!err('workEmail')}
+                      />
+                    </div>
+                  </Field>
+                </div>
+              )}
             </Section>
 
             {/* =================== Промышленная безопасность =================== */}
@@ -851,6 +943,10 @@ export default function SurveyForm({ lang, onLangChange }) {
                               }}
                               placeholder={t.protocolAreasPlaceholder}
                               searchPlaceholder={t.protocolAreasSearch}
+                              multiHint={t.searchMultiHint}
+                              emptyText={t.searchEmpty}
+                              doneLabel={t.searchDone}
+                              removeLabel={t.remove}
                               invalid={!!err(`protocol_${protocol.id}_areas`)}
                             />
                           </div>
@@ -867,6 +963,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                               }}
                               onClear={() => updateProtocol(protocol.id, { file: null })}
                               label={t.chooseFile}
+                              removeLabel={t.remove}
                               invalid={!!err(`protocol_${protocol.id}_file`)}
                             />
                           </div>
@@ -977,6 +1074,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                             }}
                             onClear={() => setElectroFile(null)}
                             label={t.chooseFile}
+                            removeLabel={t.remove}
                             invalid={!!err('electroFile')}
                           />
                         </div>
@@ -1044,6 +1142,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                           label={t.passportIssuedBy}
                           required={country.issuedBy.required}
                           dim={!country.issuedBy.required}
+                          optionalMark={t.optionalMark}
                           error={err('passportIssuedBy')}
                           className={country.deptCode.show ? '' : 'sm:col-span-2'}
                         >
@@ -1064,6 +1163,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                           label={t.passportCode}
                           required={country.deptCode.required}
                           dim={!country.deptCode.required}
+                          optionalMark={t.optionalMark}
                           error={err('passportDeptCode')}
                         >
                           <div data-field="passportDeptCode">
@@ -1118,6 +1218,34 @@ export default function SurveyForm({ lang, onLangChange }) {
                   invalid={!!err('height')}
                 />
               </div>
+
+              {needsHeightPhoto && (
+                <Panel tone="accent" className="vd-anim-expand">
+                  <SubHeading className="mb-1">{t.photoTitleHeight}</SubHeading>
+                  <p className="text-[11px] sm:text-xs text-vd-muted mb-1 leading-snug">{t.photoComment}</p>
+                  <p className="text-[11px] sm:text-xs text-vd-blue font-semibold mb-3 leading-snug">
+                    {t.photoSeparateNote}
+                  </p>
+                  <div data-field="heightPhoto">
+                    <FileInput
+                      id="height-photo"
+                      file={heightPhoto}
+                      onSelect={(file) => {
+                        clearErr('heightPhoto');
+                        setHeightPhoto(file);
+                      }}
+                      onClear={() => setHeightPhoto(null)}
+                      label={t.photoUpload}
+                      accept="image/*"
+                      invalid={!!err('heightPhoto')}
+                      removeLabel={t.remove}
+                    />
+                    {err('heightPhoto') && (
+                      <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('heightPhoto')}</p>
+                    )}
+                  </div>
+                </Panel>
+              )}
             </Section>
 
             {/* ==================== Замкнутые пространства ===================== */}
@@ -1153,24 +1281,30 @@ export default function SurveyForm({ lang, onLangChange }) {
                 />
               </div>
 
-              {needsPhoto && (
+              {needsConfinedPhoto && (
                 <Panel tone="accent" className="vd-anim-expand">
-                  <SubHeading className="mb-1">{t.photoTitle}</SubHeading>
-                  <p className="text-[11px] sm:text-xs text-vd-muted mb-3 leading-snug">{t.photoComment}</p>
-                  <div data-field="photo">
+                  <SubHeading className="mb-1">{t.photoTitleConfined}</SubHeading>
+                  <p className="text-[11px] sm:text-xs text-vd-muted mb-1 leading-snug">{t.photoComment}</p>
+                  <p className="text-[11px] sm:text-xs text-vd-blue font-semibold mb-3 leading-snug">
+                    {t.photoSeparateNote}
+                  </p>
+                  <div data-field="confinedPhoto">
                     <FileInput
-                      id="employee-photo"
-                      file={employeePhoto}
+                      id="confined-photo"
+                      file={confinedPhoto}
                       onSelect={(file) => {
-                        clearErr('photo');
-                        setEmployeePhoto(file);
+                        clearErr('confinedPhoto');
+                        setConfinedPhoto(file);
                       }}
-                      onClear={() => setEmployeePhoto(null)}
+                      onClear={() => setConfinedPhoto(null)}
                       label={t.photoUpload}
                       accept="image/*"
-                      invalid={!!err('photo')}
+                      invalid={!!err('confinedPhoto')}
+                      removeLabel={t.remove}
                     />
-                    {err('photo') && <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('photo')}</p>}
+                    {err('confinedPhoto') && (
+                      <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('confinedPhoto')}</p>
+                    )}
                   </div>
                 </Panel>
               )}
@@ -1240,6 +1374,10 @@ export default function SurveyForm({ lang, onLangChange }) {
                         onChange={bind('licenceCategories', setLicenceCategories)}
                         placeholder={t.licenceCategoriesPlaceholder}
                         searchPlaceholder={t.licenceCategoriesSearch}
+                        multiHint={t.searchMultiHint}
+                        emptyText={t.searchEmpty}
+                        doneLabel={t.searchDone}
+                        removeLabel={t.remove}
                         invalid={!!err('licenceCategories')}
                       />
                     </div>
@@ -1293,6 +1431,9 @@ export default function SurveyForm({ lang, onLangChange }) {
                           }}
                           placeholder={t.otherTrainingPlaceholder}
                           searchPlaceholder={t.otherTrainingSearch}
+                          emptyText={t.searchEmpty}
+                          doneLabel={t.searchDone}
+                          removeLabel={t.remove}
                           invalid={!!err(`training_${item.id}_code`)}
                         />
                       </div>
@@ -1314,6 +1455,27 @@ export default function SurveyForm({ lang, onLangChange }) {
                       </Field>
                     )}
 
+                    <Field
+                      label={t.otherTrainingDate}
+                      required
+                      hint={t.otherTrainingDateHint}
+                      error={err(`training_${item.id}_date`)}
+                    >
+                      <div data-field={`training_${item.id}_date`}>
+                        <TextInput
+                          mask="date"
+                          inputMode="numeric"
+                          value={item.issueDate}
+                          onChange={(value) => {
+                            clearErr(`training_${item.id}_date`);
+                            updateTraining(item.id, { issueDate: value });
+                          }}
+                          placeholder={t.datePlaceholder}
+                          invalid={!!err(`training_${item.id}_date`)}
+                        />
+                      </div>
+                    </Field>
+
                     <Field label={t.otherFilesLabel} hint={t.fileHint}>
                       <MultiFileInput
                         id={`training-files-${item.id}`}
@@ -1323,6 +1485,7 @@ export default function SurveyForm({ lang, onLangChange }) {
                           updateTraining(item.id, { files: item.files.filter((_, i) => i !== fileIndex) })
                         }
                         label={t.chooseFile}
+                        removeLabel={t.remove}
                       />
                     </Field>
                   </Panel>
