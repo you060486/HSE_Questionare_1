@@ -6,8 +6,8 @@ import { COUNTRIES, DEFAULT_COUNTRY_ID, getCountry } from '../data/countries.js'
 import { ATTESTATION_AREAS } from '../data/attestation.js';
 import { TRAININGS, TRAINING_OTHER_CODE } from '../data/trainings.js';
 import { LICENCE_CATEGORIES } from '../data/licence.js';
+import { DEPARTMENTS, DEPARTMENT_OTHER, ROTATIONS, ROTATION_OTHER, PROTOCOL_VENUES } from '../data/departments.js';
 import { isValidDate } from '../lib/format.js';
-import { buildSurveyDoc } from '../lib/docBuilder.js';
 import { VegaLogo } from './Logo.jsx';
 import SmartSelect from './SmartSelect.jsx';
 import {
@@ -26,13 +26,14 @@ import {
   ProgressBar,
 } from './ui.jsx';
 
-const MAX_PROTOCOLS = 10;
+const MAX_PROTOCOLS = 5;
+const MAX_TRAININGS = 5;
 const EMPLOYERS = ['Vega Development', 'Polar Express', 'Другое'];
 const STATUSES = ['have', 'need', 'dont_need', 'unknown'];
 const ELECTRO_GROUPS = ['I', 'II', 'III', 'IV', 'V'];
 
 const newId = () => Math.random().toString(36).slice(2, 10);
-const emptyProtocol = () => ({ id: newId(), number: '', date: '', areas: [], file: null });
+const emptyProtocol = () => ({ id: newId(), number: '', venue: '', date: '', areas: [], file: null });
 const emptyTraining = () => ({ id: newId(), code: '', customTitle: '', issueDate: '', files: [] });
 
 const LICENCE_ITEMS = LICENCE_CATEGORIES.map((c) => ({ code: c.code, title: c.title, group: '' }));
@@ -54,6 +55,10 @@ export default function SurveyForm({ lang, onLangChange }) {
 
   const [employeeName, setEmployeeName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [department, setDepartment] = useState('');
+  const [departmentOther, setDepartmentOther] = useState('');
+  const [rotationStart, setRotationStart] = useState('');
+  const [rotation, setRotation] = useState('');
   const [phones, setPhones] = useState([{ id: newId(), value: '' }]);
   const [personalEmail, setPersonalEmail] = useState('');
   const [workEmail, setWorkEmail] = useState('');
@@ -197,7 +202,7 @@ export default function SurveyForm({ lang, onLangChange }) {
   const removeProtocol = (id) => setProtocols((list) => (list.length > 1 ? list.filter((p) => p.id !== id) : list));
 
   const updateTraining = (id, patch) => setTrainings((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-  const addTraining = () => setTrainings((list) => [...list, emptyTraining()]);
+  const addTraining = () => setTrainings((list) => (list.length >= MAX_TRAININGS ? list : [...list, emptyTraining()]));
   const removeTraining = (id) => setTrainings((list) => list.filter((x) => x.id !== id));
 
   const updatePhone = (id, value) => setPhones((list) => list.map((p) => (p.id === id ? { ...p, value } : p)));
@@ -247,6 +252,9 @@ export default function SurveyForm({ lang, onLangChange }) {
     if (country.isOther) need('citizenshipOther', filled(citizenshipOther));
     need('employeeName', filled(employeeName) && employeeName.trim().split(/\s+/).length >= 2);
     need('birthDate', isValidDate(birthDate), t.invalidFormat);
+    need('department', department === DEPARTMENT_OTHER ? filled(departmentOther) : filled(department), t.selectAtLeastOne);
+    need('rotationStart', isValidDate(rotationStart), t.invalidFormat);
+    need('rotation', filled(rotation), t.selectAtLeastOne);
     need('phone_0', filled(phones[0]?.value) && phones[0].value.replace(/\D/g, '').length >= 10, t.invalidFormat);
     const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
     if (emailsInConfirmMode) {
@@ -281,6 +289,7 @@ export default function SurveyForm({ lang, onLangChange }) {
     if (promStatus === 'have') {
       protocols.forEach((p) => {
         need(`protocol_${p.id}_number`, filled(p.number));
+        need(`protocol_${p.id}_venue`, filled(p.venue), t.selectAtLeastOne);
         need(`protocol_${p.id}_date`, isValidDate(p.date), t.invalidFormat);
         need(`protocol_${p.id}_areas`, p.areas.length > 0, t.selectAtLeastOne);
         need(`protocol_${p.id}_file`, !!p.file, t.fileRequired);
@@ -321,6 +330,7 @@ export default function SurveyForm({ lang, onLangChange }) {
     return list;
   }, [
     t, country, employer, employerOther, citizenshipOther, employeeName, birthDate, phones, personalEmail, workEmail,
+    department, departmentOther, rotationStart, rotation,
     emailsInConfirmMode, emailsConfirmed,
     personalIdValue, taxIdValue, promStatus, electroStatus, needsPassport, needsTaxId, passportNumber, passportIssueDate,
     passportIssuedBy, passportDeptCode, protocols, electroEducation, electroGroup, electroDate, electroFile,
@@ -401,6 +411,7 @@ export default function SurveyForm({ lang, onLangChange }) {
           ? protocols.map((p) => ({
               number: p.number.trim(),
               date: p.date,
+              venue: p.venue,
               areas: p.areas,
               areasText: p.areas.join(', '),
             }))
@@ -430,6 +441,12 @@ export default function SurveyForm({ lang, onLangChange }) {
         positionRu,
         positionEn,
         birthDate,
+
+        department: department === DEPARTMENT_OTHER ? departmentOther.trim() : department,
+        departmentIsOther: department === DEPARTMENT_OTHER,
+        rotationStart,
+        // Для варианта «Другое» в таблицу длительность вахты не пишем
+        rotation: rotation === ROTATION_OTHER ? '' : rotation,
 
         phones: phoneList,
         phone: phoneList[0] || '',
@@ -482,13 +499,15 @@ export default function SurveyForm({ lang, onLangChange }) {
           : null,
 
         trainings: trainingList,
+        consentText: t.consentText,
       };
 
       const formData = new FormData();
       formData.append('data', JSON.stringify(payload));
 
+      // Word-досье собирает сервер из той же строки, что уходит в Excel —
+      // так расчётные колонки считаются в одном месте
       const safeName = employeeName.trim().replace(/\s+/g, '_');
-      formData.append('files', buildSurveyDoc(payload, t), `Анкета_${safeName}.doc`);
 
       const attach = (file, name) => {
         if (!file || !file.name) return;
@@ -548,26 +567,26 @@ export default function SurveyForm({ lang, onLangChange }) {
   return (
     <div className="min-h-screen bg-vd-bg pb-24 sm:pb-8">
       {/* Шапка */}
-      <header className="relative overflow-hidden" style={{ background: 'linear-gradient(130deg, #0C1633 0%, #16255C 55%, #14548F 100%)' }}>
+      <header className="relative overflow-hidden vd-header-gradient">
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-          <div className="absolute -right-10 -top-10 w-48 h-48 border border-white/10" style={{ transform: 'rotate(45deg)' }} />
           <div className="absolute right-24 -bottom-16 w-32 h-32 border border-white/[0.07]" style={{ transform: 'rotate(45deg)' }} />
+          <div className="absolute -right-16 bottom-4 w-40 h-40 border border-white/[0.06]" style={{ transform: 'rotate(45deg)' }} />
         </div>
 
-        <div className="relative max-w-3xl mx-auto px-4 sm:px-8 pt-5 pb-7 sm:pt-7 sm:pb-9">
-          <div className="flex items-start justify-between gap-4 mb-7 sm:mb-9">
-            {/* Русский язык — логотип без пометки eng, английский — с ней */}
-            <VegaLogo lang={lang} variant="light" className="h-11 sm:h-14 text-[15px] sm:text-[19px]" />
+        <div className="relative max-w-3xl mx-auto px-4 sm:px-8 pt-4 pb-7 sm:pt-5 sm:pb-9">
+          {/* Логотип стоит на светлой части градиента — подложка ему не нужна */}
+          <div className="flex items-center justify-between gap-4 mb-10 sm:mb-12">
+            <VegaLogo className="h-11 sm:h-14 text-[15px] sm:text-[19px]" />
 
-            <div className="flex items-center gap-1 bg-white/10 backdrop-blur-sm p-0.5 shrink-0 vd-sharp">
-              <Globe className="w-3.5 h-3.5 text-white/50 ml-1.5 hidden sm:block" />
+            <div className="flex items-center gap-0.5 border border-vd-line bg-white p-0.5 shrink-0 vd-sharp">
+              <Globe className="w-3.5 h-3.5 text-vd-muted ml-1.5 mr-0.5 hidden sm:block" />
               {['ru', 'en'].map((code) => (
                 <button
                   key={code}
                   type="button"
                   onClick={() => onLangChange(code)}
                   className={`px-2.5 py-1.5 text-[11px] font-bold uppercase transition-all vd-sharp ${
-                    lang === code ? 'bg-white text-vd-navy' : 'text-white/70 hover:text-white hover:bg-white/10'
+                    lang === code ? 'bg-vd-navy text-white' : 'text-vd-muted hover:text-vd-navy hover:bg-vd-blue-pale'
                   }`}
                 >
                   {code}
@@ -682,6 +701,62 @@ export default function SurveyForm({ lang, onLangChange }) {
                       placeholder={t.datePlaceholder}
                       invalid={!!err('birthDate')}
                     />
+                  </div>
+                </Field>
+
+                <Field label={t.departmentLabel} required error={err('department')}>
+                  <div data-field="department">
+                    {/* Работник видит расшифровку, в таблицу уходит аббревиатура */}
+                    <Select value={department} onChange={bind('department', setDepartment)} invalid={!!err('department')}>
+                      <option value="" disabled>
+                        {t.departmentSelect}
+                      </option>
+                      {DEPARTMENTS.map((dep) => (
+                        <option key={dep.code} value={dep.code}>
+                          {lang === 'ru' ? dep.ru : dep.en}
+                        </option>
+                      ))}
+                      <option value={DEPARTMENT_OTHER}>{t.departmentOther}</option>
+                    </Select>
+                    {department === DEPARTMENT_OTHER && (
+                      <div className="mt-2 vd-anim-expand">
+                        <TextInput
+                          value={departmentOther}
+                          onChange={bind('department', setDepartmentOther)}
+                          placeholder={t.departmentOtherPlaceholder}
+                          invalid={!!err('department')}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </Field>
+
+                <Field label={t.rotationStartLabel} required hint={t.rotationStartHint} error={err('rotationStart')}>
+                  <div data-field="rotationStart">
+                    <TextInput
+                      mask="date"
+                      inputMode="numeric"
+                      value={rotationStart}
+                      onChange={bind('rotationStart', setRotationStart)}
+                      placeholder={t.datePlaceholder}
+                      invalid={!!err('rotationStart')}
+                    />
+                  </div>
+                </Field>
+
+                <Field label={t.rotationLabel} required error={err('rotation')}>
+                  <div data-field="rotation">
+                    <Select value={rotation} onChange={bind('rotation', setRotation)} invalid={!!err('rotation')}>
+                      <option value="" disabled>
+                        {t.rotationSelect}
+                      </option>
+                      {ROTATIONS.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                      <option value={ROTATION_OTHER}>{t.rotationOther}</option>
+                    </Select>
                   </div>
                 </Field>
 
@@ -908,6 +983,28 @@ export default function SurveyForm({ lang, onLangChange }) {
                                 placeholder={t.protocolNumberPlaceholder}
                                 invalid={!!err(`protocol_${protocol.id}_number`)}
                               />
+                            </div>
+                          </Field>
+
+                          <Field label={t.protocolVenue} required error={err(`protocol_${protocol.id}_venue`)}>
+                            <div data-field={`protocol_${protocol.id}_venue`}>
+                              <Select
+                                value={protocol.venue}
+                                onChange={(value) => {
+                                  clearErr(`protocol_${protocol.id}_venue`);
+                                  updateProtocol(protocol.id, { venue: value });
+                                }}
+                                invalid={!!err(`protocol_${protocol.id}_venue`)}
+                              >
+                                <option value="" disabled>
+                                  {t.protocolVenueSelect}
+                                </option>
+                                {PROTOCOL_VENUES.map((v) => (
+                                  <option key={v.code} value={v.code}>
+                                    {lang === 'ru' ? v.ru : v.en}
+                                  </option>
+                                ))}
+                              </Select>
                             </div>
                           </Field>
 
@@ -1499,9 +1596,13 @@ export default function SurveyForm({ lang, onLangChange }) {
                   </Panel>
                 ))}
 
-                <Button type="button" variant="add" onClick={addTraining}>
-                  <Plus className="w-4 h-4" /> {t.addMoreTrainings}
-                </Button>
+                {trainings.length < MAX_TRAININGS ? (
+                  <Button type="button" variant="add" onClick={addTraining}>
+                    <Plus className="w-4 h-4" /> {t.addMoreTrainings}
+                  </Button>
+                ) : (
+                  <Callout tone="info">{t.trainingLimit}</Callout>
+                )}
               </div>
             </Section>
 

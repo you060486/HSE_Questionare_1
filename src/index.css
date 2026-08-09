@@ -33,6 +33,58 @@ body {
 }
 
 @layer components {
+/* Шапка: сверху белое поле под логотип, ниже плавный переход в тёмно-синий.
+   Границы перехода заданы в пикселях, чтобы к строке «Охрана труда и…»
+   фон уже был полностью тёмным независимо от длины текста. */
+.vd-header-gradient {
+  background: linear-gradient(
+    to bottom,
+    #ffffff 0,
+    #ffffff 60px,
+    #16255c 104px,
+    #16255c 60%,
+    #14548f 100%
+  );
+}
+
+@media (min-width: 640px) {
+  .vd-header-gradient {
+    background: linear-gradient(
+      to bottom,
+      #ffffff 0,
+      #ffffff 80px,
+      #16255c 132px,
+      #16255c 60%,
+      #14548f 100%
+    );
+  }
+}
+
+/* Экран выбора языка построен по тому же принципу */
+.vd-splash-gradient {
+  background: linear-gradient(
+    to bottom,
+    #ffffff 0,
+    #ffffff 150px,
+    #16255c 260px,
+    #16255c 65%,
+    #14548f 100%
+  );
+}
+
+@media (min-width: 640px) {
+  .vd-splash-gradient {
+    background: linear-gradient(
+      to bottom,
+      #ffffff 0,
+      #ffffff 190px,
+      #16255c 310px,
+      #16255c 65%,
+      #14548f 100%
+    );
+  }
+}
+
 /* Углы намеренно почти прямые — как в корпоративной презентации */
 .vd-sharp {
   border-radius: 2px;
@@ -123,9 +175,11 @@ body {
   transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* transform: none, а не translateY(0) — иначе раздел остаётся отдельным
+   слоем и выпадающий список не может оказаться поверх соседних разделов */
 .vd-reveal.is-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: none;
 }
 
 /* Диагональная «заливка» кнопки при наведении */

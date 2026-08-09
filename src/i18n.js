@@ -38,6 +38,18 @@ export const translations = {
     fullName: 'Фамилия, имя и отчество',
     fullNamePlaceholder: 'Иванов Иван Иванович',
     birthDateLabel: 'Дата рождения',
+    departmentLabel: 'Отдел',
+    departmentSelect: 'Выберите отдел',
+    departmentOther: 'Другое',
+    departmentOtherLabel: 'Впишите название отдела',
+    departmentOtherPlaceholder: 'Как называется Ваш отдел',
+    rotationStartLabel: 'Дата заезда на вахту',
+    rotationStartHint: 'Когда Вы выходите на первую вахту',
+    rotationLabel: 'Длительность вахты',
+    rotationSelect: 'Выберите вариант',
+    rotationOther: 'Другое',
+    protocolVenue: 'Где проходила аттестация',
+    protocolVenueSelect: 'Выберите вариант',
     datePlaceholder: 'ДД.ММ.ГГГГ',
 
     // --- Контакты ---
@@ -90,7 +102,7 @@ export const translations = {
     protocolAreasHint: 'Выберите все области, которые указаны в этом протоколе',
     protocolFile: 'Скан или фото протокола',
     addMoreProtocols: 'Добавить ещё протокол',
-    protocolLimit: 'Больше 10 протоколов в анкету не поместится. Остальные принесите в отдел охраны труда',
+    protocolLimit: 'Больше 5 протоколов в анкету не поместится. Остальные принесите в отдел охраны труда',
 
     // --- 2. Электробезопасность ---
     electroSafety: 'Электробезопасность',
@@ -156,6 +168,7 @@ export const translations = {
     otherTrainingDateHint: 'Дата, указанная в удостоверении или протоколе',
     otherFilesLabel: 'Приложить удостоверение',
     addMoreTrainings: 'Добавить ещё обучение',
+    trainingLimit: 'Больше 5 обучений в анкету не поместится. Остальные принесите в отдел охраны труда',
 
     // --- Отправка ---
     consentText:
@@ -229,6 +242,18 @@ export const translations = {
     fullName: 'Full name',
     fullNamePlaceholder: 'John Michael Smith',
     birthDateLabel: 'Date of birth',
+    departmentLabel: 'Department',
+    departmentSelect: 'Select a department',
+    departmentOther: 'Other',
+    departmentOtherLabel: 'Enter the department name',
+    departmentOtherPlaceholder: 'What your department is called',
+    rotationStartLabel: 'Rotation start date',
+    rotationStartHint: 'When you begin your first rotation',
+    rotationLabel: 'Rotation pattern',
+    rotationSelect: 'Select an option',
+    rotationOther: 'Other',
+    protocolVenue: 'Where the certification took place',
+    protocolVenueSelect: 'Select an option',
     datePlaceholder: 'DD.MM.YYYY',
 
     // --- Contacts ---
@@ -280,7 +305,7 @@ export const translations = {
     protocolAreasHint: 'Select every area listed in this protocol',
     protocolFile: 'Scan or photo of the protocol',
     addMoreProtocols: 'Add another protocol',
-    protocolLimit: 'The form holds up to 10 protocols. Bring the rest to the HSE department',
+    protocolLimit: 'The form holds up to 5 protocols. Bring the rest to the HSE department',
 
     // --- 2. Electrical safety ---
     electroSafety: 'Electrical safety',
@@ -345,6 +370,7 @@ export const translations = {
     otherTrainingDateHint: 'The date shown on the certificate or protocol',
     otherFilesLabel: 'Attach the certificate',
     addMoreTrainings: 'Add another training',
+    trainingLimit: 'The form holds up to 5 trainings. Bring the rest to the HSE department',
 
     // --- Submit ---
     consentText:

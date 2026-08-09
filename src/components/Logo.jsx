@@ -1,14 +1,13 @@
 // Логотип Vega Development.
 //
-// Основной вариант — фирменные PNG из /public:
-//   logo-ru.png   — «ВЕГА РАЗВИТИЕ» (показывается при русском языке)
-//   logo-eng.png  — «VEGA DEVELOPMENT» (английский язык и экран выбора языка)
+// Основной вариант — фирменный PNG из /public: logo-eng.png («VEGA DEVELOPMENT»).
+// Используется на всех экранах независимо от выбранного языка.
 //
 // Если файлов на месте нет, автоматически подставляется векторная звезда —
 // анкета не ломается и выглядит прилично, пока картинки не загрузили.
 
 import { useState } from 'react';
-import { LOGO_FILES } from '../data/logo.js';
+import { LOGO_FILE } from '../data/logo.js';
 
 /* ------------------------------------------------------------------ */
 /* Запасной вариант: звезда, собранная из восьми граней                */
@@ -66,9 +65,9 @@ export function VegaStar({ className = '', animated = false, title = 'Vega Devel
 }
 
 /* Текстовая часть запасного варианта */
-function FallbackWordmark({ lang, variant }) {
-  const top = lang === 'ru' ? 'ВЕГА' : 'VEGA';
-  const bottom = lang === 'ru' ? 'РАЗВИТИЕ' : 'DEVELOPMENT';
+function FallbackWordmark({ variant }) {
+  const top = 'VEGA';
+  const bottom = 'DEVELOPMENT';
   return (
     <div className="leading-none">
       <div
@@ -94,34 +93,27 @@ function FallbackWordmark({ lang, variant }) {
 
 /**
  * Логотип компании.
- * @param {'ru'|'en'} lang     — какой файл брать: без пометки eng или с ней
- * @param {'light'|'dark'} variant — на тёмной подложке логотип кладётся на белую плашку
- * @param {string} className   — задаёт высоту, например h-10
+ * @param {'light'|'dark'} variant — цвет запасной надписи под тёмный или светлый фон
+ * @param {string} className       — задаёт высоту, например h-12
  */
-export function VegaLogo({ lang = 'ru', variant = 'dark', className = '' }) {
+export function VegaLogo({ variant = 'dark', className = '' }) {
   const [imageFailed, setImageFailed] = useState(false);
-  const src = LOGO_FILES[lang] || LOGO_FILES.ru;
-  const alt = lang === 'ru' ? 'Вега Развитие' : 'Vega Development';
 
   if (imageFailed) {
-    // Файлов ещё нет — показываем векторный запасной вариант
+    // Файла ещё нет — показываем векторный запасной вариант
     return (
       <div className={`flex items-center gap-2.5 ${className}`}>
         <VegaStar className="h-full w-auto shrink-0" />
-        <FallbackWordmark lang={lang} variant={variant} />
+        <FallbackWordmark variant={variant} />
       </div>
     );
   }
 
-  // Логотип нарисован тёмно-синим по светлому фону, поэтому на тёмной шапке
-  // кладём его на белую плашку — так он читается при любой прозрачности файла
-  const onDark = variant === 'light';
-
   return (
-    <span className={`inline-flex items-center shrink-0 ${onDark ? 'bg-white px-2.5 py-1.5' : ''} ${className}`}>
+    <span className={`inline-flex items-center shrink-0 ${className}`}>
       <img
-        src={src}
-        alt={alt}
+        src={LOGO_FILE}
+        alt="Vega Development"
         onError={() => setImageFailed(true)}
         className="h-full w-auto object-contain"
         style={{ maxWidth: '100%' }}

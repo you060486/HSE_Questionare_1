@@ -5,7 +5,10 @@
 // Ищет и по коду, и по словам из наименования. Выбранное складывается в «плашки»,
 // можно писать дальше и добавлять ещё. Руками вписать несуществующий код нельзя.
 //
-// На телефоне окно открывается снизу на весь экран, на компьютере — выпадающим списком.
+// Список раскрывается прямо под полем и не закрывает экран целиком.
+// При открытии страница подкручивается так, чтобы одновременно были видны
+// и строка поиска, и первые варианты. Высота списка подстраивается под
+// свободное место с учётом выехавшей клавиатуры.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, Check, ChevronDown, Plus } from 'lucide-react';
@@ -33,8 +36,12 @@ export default function SmartSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+  const [listMaxHeight, setListMaxHeight] = useState(260);
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Сколько оставить сверху под липкой полосой прогресса, чтобы поле не уехало под неё
+  const TOP_GAP = 84;
 
   const selected = Array.isArray(value) ? value : value ? [value] : [];
 
@@ -92,6 +99,53 @@ export default function SmartSelect({
     }
   }, [open]);
 
+  // Подгоняем высоту списка под свободное место под полем.
+  // visualViewport учитывает выехавшую клавиатуру — обычный innerHeight её не видит.
+  useEffect(() => {
+    if (!open) return;
+
+    const measure = () => {
+      const node = wrapperRef.current;
+      if (!node) return;
+      const rect = node.getBoundingClientRect();
+      const viewport = window.visualViewport;
+      const viewportBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+      const spaceBelow = viewportBottom - rect.bottom - 16;
+      // Не даём списку ни схлопнуться, ни занять весь экран
+      setListMaxHeight(Math.max(150, Math.min(320, spaceBelow)));
+    };
+
+    measure();
+    // Ещё раз после того, как отработает плавная прокрутка и появится клавиатура
+    const first = setTimeout(measure, 320);
+    const second = setTimeout(measure, 700);
+
+    window.visualViewport?.addEventListener('resize', measure);
+    window.visualViewport?.addEventListener('scroll', measure);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      clearTimeout(first);
+      clearTimeout(second);
+      window.visualViewport?.removeEventListener('resize', measure);
+      window.visualViewport?.removeEventListener('scroll', measure);
+      window.removeEventListener('resize', measure);
+    };
+  }, [open]);
+
+  /** Открывает список и подкручивает страницу, чтобы поле оказалось вверху экрана */
+  const openPanel = () => {
+    setOpen(true);
+    requestAnimationFrame(() => {
+      const node = wrapperRef.current;
+      if (!node) return;
+      const shift = node.getBoundingClientRect().top - TOP_GAP;
+      if (Math.abs(shift) > 8) {
+        window.scrollBy({ top: shift, behavior: 'smooth' });
+      }
+    });
+  };
+
   const toggle = (code) => {
     if (!multiple) {
       onChange([code]);
@@ -112,12 +166,13 @@ export default function SmartSelect({
   const chips = selected.map((code) => byCode.get(code) || { code, title: '' });
 
   return (
-    <div className="relative" ref={wrapperRef}>
+    // Пока список открыт, поднимаем блок над соседними разделами и липкой полосой
+    <div className={`relative ${open ? 'z-50' : ''}`} ref={wrapperRef}>
       {/* Поле с выбранным */}
       <button
         type="button"
         id={id}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => (open ? close() : openPanel())}
         className={`vd-input flex items-start gap-2 text-left min-h-[48px] ${invalid ? 'vd-invalid' : ''} ${
           open ? 'border-vd-blue shadow-[0_0_0_3px_rgba(27,133,206,0.14)]' : ''
         }`}
@@ -161,13 +216,9 @@ export default function SmartSelect({
 
       {open && (
         <>
-          {/* Затемнение — только на телефоне */}
-          <div className="fixed inset-0 bg-vd-navy-deep/50 z-40 sm:hidden vd-anim-fade-in" onClick={close} />
-
-          <div
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[82vh] flex flex-col bg-white border-t-2 border-vd-blue shadow-2xl vd-anim-sheet
-                       sm:absolute sm:inset-x-0 sm:bottom-auto sm:top-[calc(100%+4px)] sm:z-40 sm:max-h-[22rem] sm:border sm:border-vd-blue sm:shadow-xl sm:vd-sharp"
-          >
+          {/* Список раскрывается под полем и не перекрывает экран целиком:
+              страница остаётся прокручиваемой, поле ввода видно всегда */}
+          <div className="absolute inset-x-0 top-[calc(100%+4px)] z-50 flex flex-col bg-white border border-vd-blue shadow-xl vd-sharp vd-anim-expand">
             {/* Шапка окна: сначала выбранное, потом строка поиска */}
             <div className="border-b border-vd-line-soft bg-white shrink-0">
               {/* Выбранное — вверху, чтобы было видно, что уже отмечено */}
@@ -242,7 +293,7 @@ export default function SmartSelect({
                   <button
                     type="button"
                     onClick={close}
-                    className="sm:hidden shrink-0 px-4 py-3 bg-vd-navy text-white text-[13px] font-bold vd-sharp"
+                    className="shrink-0 px-4 py-3 bg-vd-navy text-white text-[13px] font-bold vd-sharp"
                   >
                     {doneLabel}
                   </button>
@@ -251,8 +302,8 @@ export default function SmartSelect({
               </div>
             </div>
 
-            {/* Список */}
-            <div className="overflow-y-auto vd-scroll overscroll-contain flex-1">
+            {/* Список: высота подстроена под свободное место на экране */}
+            <div className="overflow-y-auto vd-scroll overscroll-contain" style={{ maxHeight: `${listMaxHeight}px` }}>
               {results.length === 0 && <p className="px-4 py-6 text-center text-[13px] text-vd-muted">{emptyText}</p>}
 
               {grouped.map(({ group, rows }) => (

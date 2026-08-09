@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { VegaStar } from './Logo.jsx';
-import { LOGO_FILES } from '../data/logo.js';
+import { LOGO_FILE } from '../data/logo.js';
 
 export default function LanguageSplash({ onChoose }) {
   const [stage, setStage] = useState(0); // 0 — появляется логотип, 1 — показываем выбор
@@ -23,58 +23,46 @@ export default function LanguageSplash({ onChoose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center px-6 overflow-hidden transition-all duration-[420ms] ease-out"
+      className="vd-splash-gradient fixed inset-0 z-[100] flex flex-col items-center px-6 py-10 overflow-y-auto transition-all duration-[420ms] ease-out"
       style={{
-        background: 'linear-gradient(140deg, #0C1633 0%, #16255C 48%, #14548F 100%)',
         opacity: leaving ? 0 : 1,
         transform: leaving ? 'scale(1.04)' : 'scale(1)',
       }}
     >
-      {/* Ромбы на фоне — мотив корпоративных слайдов */}
+      {/* Ромбы на фоне — мотив корпоративных слайдов. Только в тёмной части. */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
         <div
-          className="absolute -left-24 top-1/4 w-64 h-64 border border-white/10"
+          className="absolute -left-24 bottom-1/4 w-64 h-64 border border-white/10"
           style={{ transform: 'rotate(45deg)', animation: 'vd-fade-in 1.4s ease 0.3s both' }}
         />
         <div
-          className="absolute -right-20 bottom-1/4 w-52 h-52 border border-white/10"
+          className="absolute -right-20 bottom-8 w-52 h-52 border border-white/10"
           style={{ transform: 'rotate(45deg)', animation: 'vd-fade-in 1.4s ease 0.55s both' }}
-        />
-        <div
-          className="absolute right-1/4 -top-16 w-40 h-40 border border-white/[0.07]"
-          style={{ transform: 'rotate(45deg)', animation: 'vd-fade-in 1.4s ease 0.8s both' }}
         />
       </div>
 
-      <div className="relative w-full max-w-sm text-center">
-        {/* Логотип компании */}
+      <div className="relative w-full max-w-sm text-center m-auto">
+        {/* Логотип стоит на светлой части градиента — подложка ему не нужна */}
         {logoFailed ? (
           <>
             <div className="flex justify-center mb-7">
-              <VegaStar className="w-24 h-24 sm:w-28 sm:h-28 drop-shadow-2xl" animated />
+              <VegaStar className="w-24 h-24 sm:w-28 sm:h-28" animated />
             </div>
             <div className="mb-10" style={{ animation: 'vd-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) 0.62s both' }}>
-              <div className="text-[#5FB6EA] font-black text-2xl sm:text-3xl leading-none tracking-tight">VEGA</div>
-              <div className="text-white font-black text-base sm:text-lg leading-none tracking-[0.02em] mt-1">
+              <div className="text-vd-blue font-black text-2xl sm:text-3xl leading-none tracking-tight">VEGA</div>
+              <div className="text-vd-navy font-black text-base sm:text-lg leading-none tracking-[0.02em] mt-1">
                 DEVELOPMENT
               </div>
-              <div className="mx-auto mt-5 h-px w-14 bg-white/25" />
             </div>
           </>
         ) : (
-          <div
-            className="mb-10"
-            style={{ animation: 'vd-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both' }}
-          >
-            <div className="inline-flex bg-white px-6 py-5 shadow-2xl">
-              <img
-                src={LOGO_FILES.en}
-                alt="Vega Development"
-                onError={() => setLogoFailed(true)}
-                className="h-20 sm:h-24 w-auto object-contain"
-              />
-            </div>
-            <div className="mx-auto mt-6 h-px w-14 bg-white/25" />
+          <div className="mb-12 sm:mb-14" style={{ animation: 'vd-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s both' }}>
+            <img
+              src={LOGO_FILE}
+              alt="Vega Development"
+              onError={() => setLogoFailed(true)}
+              className="h-24 sm:h-28 w-auto max-w-full object-contain mx-auto"
+            />
           </div>
         )}
 

@@ -161,7 +161,7 @@ export default function AdminPanel() {
       <div className="max-w-3xl mx-auto bg-white border-t-2 border-vd-blue p-5 sm:p-7 space-y-7">
         <div className="flex items-center justify-between gap-4 border-b border-vd-line pb-4">
           <div className="flex items-center gap-3 min-w-0">
-            <VegaLogo lang="ru" className="h-8 text-[13px] hidden sm:flex" />
+            <VegaLogo className="h-8 text-[13px] hidden sm:flex" />
             <h2 className="text-base sm:text-lg font-black text-vd-navy uppercase tracking-wide flex items-center gap-2">
               <Users className="w-5 h-5 text-vd-blue shrink-0" />
               Генератор анкет

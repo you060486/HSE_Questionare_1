@@ -1,16 +1,12 @@
-// Пути к фирменным логотипам.
+// Путь к фирменному логотипу.
 //
-// Файлы кладутся в /opt/newcomer-app/public/ и после сборки попадают в корень сайта:
-//   logo-ru.png   — «ВЕГА РАЗВИТИЕ», показывается при русском языке
-//   logo-eng.png  — «VEGA DEVELOPMENT», английский язык и экран выбора языка
+// Используется один файл — английский вариант «VEGA DEVELOPMENT».
+// Кладётся в /opt/newcomer-app/public/ и после сборки попадает в корень сайта.
 //
 // Если файла нет, интерфейс сам подставит векторную звезду — ничего не сломается.
 
 const BASE = import.meta.env.BASE_URL || '/';
 
-export const LOGO_FILES = {
-  ru: `${BASE}logo-ru.png`,
-  en: `${BASE}logo-eng.png`,
-};
+export const LOGO_FILE = `${BASE}logo-eng.png`;
 
-export default LOGO_FILES;
+export default LOGO_FILE;
