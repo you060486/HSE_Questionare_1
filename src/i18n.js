@@ -135,10 +135,10 @@ export const translations = {
 
     // --- Фотографии на удостоверения ---
     photoTitleHeight: 'Фотография на удостоверение по работам на высоте',
+    photoTitleBoth: 'Фотография на удостоверения по высоте и замкнутым пространствам',
     photoTitleConfined: 'Фотография на удостоверение по замкнутым пространствам',
     photoComment:
       'Подойдёт обычное фото на светлом фоне: лицо крупно, как на паспорт',
-    photoSeparateNote: 'На каждое удостоверение нужна отдельная фотография — приложите свою в каждый раздел',
     photoUpload: 'Загрузить фотографию',
 
     // --- 5. Транспорт ---
@@ -203,8 +203,7 @@ export const translations = {
     mailFileNameElectro: 'удостоверение_ЭБ',
     mailFileNameLicence: 'водительское',
     mailFileNameOther: 'обучение',
-    mailFileNamePhotoHeight: 'фото_высота',
-    mailFileNamePhotoConfined: 'фото_ОЗП',
+    mailFileNamePhoto: 'фото',
   },
 
   en: {
@@ -338,9 +337,9 @@ export const translations = {
 
     // --- Photos ---
     photoTitleHeight: 'Photo for the work-at-height permit card',
+    photoTitleBoth: 'Photo for the work-at-height and confined-space permit cards',
     photoTitleConfined: 'Photo for the confined-space permit card',
     photoComment: 'A normal photo on a light background will do: face close-up, passport style',
-    photoSeparateNote: 'Each permit card needs its own photo — attach one in each section',
     photoUpload: 'Upload a photo',
 
     // --- 5. Driving ---
@@ -404,8 +403,7 @@ export const translations = {
     mailFileNameElectro: 'cert_ElecSafety',
     mailFileNameLicence: 'driving_licence',
     mailFileNameOther: 'training',
-    mailFileNamePhotoHeight: 'photo_height',
-    mailFileNamePhotoConfined: 'photo_confined',
+    mailFileNamePhoto: 'photo',
   },
 };
 

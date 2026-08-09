@@ -99,9 +99,8 @@ export default function SurveyForm({ lang, onLangChange }) {
   const [confinedApprove, setConfinedApprove] = useState(false);
   const [confinedWontDo, setConfinedWontDo] = useState(false);
 
-  // На каждое удостоверение нужна своя фотография
-  const [heightPhoto, setHeightPhoto] = useState(null);
-  const [confinedPhoto, setConfinedPhoto] = useState(null);
+  // Одна фотография идёт на оба удостоверения — второй раз грузить не нужно
+  const [employeePhoto, setEmployeePhoto] = useState(null);
 
   const [driveWill, setDriveWill] = useState(false);
   const [driveWont, setDriveWont] = useState(false);
@@ -177,6 +176,10 @@ export default function SurveyForm({ lang, onLangChange }) {
   const needsTaxId = needsTraining && !!country.taxId;
   const needsHeightPhoto = heightClimb || heightApprove;
   const needsConfinedPhoto = confinedWork || confinedApprove;
+  const needsPhoto = needsHeightPhoto || needsConfinedPhoto;
+  // Показываем блок с фото только один раз — в первом подходящем разделе
+  const showPhotoInHeight = needsHeightPhoto;
+  const showPhotoInConfined = needsConfinedPhoto && !needsHeightPhoto;
   const hasUnknown = promStatus === 'unknown' || electroStatus === 'unknown';
   // Почты показываем на подтверждение, пока человек не решил их править
   const emailsInConfirmMode = emailsPrefilled && !emailsEditing;
@@ -306,10 +309,8 @@ export default function SurveyForm({ lang, onLangChange }) {
     }
 
     need('height', heightClimb || heightApprove || heightWontDo, t.selectAtLeastOne);
-    if (needsHeightPhoto) need('heightPhoto', !!heightPhoto, t.fileRequired);
-
     need('confined', confinedWork || confinedApprove || confinedWontDo, t.selectAtLeastOne);
-    if (needsConfinedPhoto) need('confinedPhoto', !!confinedPhoto, t.fileRequired);
+    if (needsPhoto) need('photo', !!employeePhoto, t.fileRequired);
 
     need('drive', driveWill || driveWont, t.selectAtLeastOne);
     if (driveWill) {
@@ -331,8 +332,8 @@ export default function SurveyForm({ lang, onLangChange }) {
     emailsInConfirmMode, emailsConfirmed,
     personalIdValue, taxIdValue, promStatus, electroStatus, needsPassport, needsTaxId, passportNumber, passportIssueDate,
     passportIssuedBy, passportDeptCode, protocols, electroEducation, electroGroup, electroDate, electroFile,
-    heightClimb, heightApprove, heightWontDo, needsHeightPhoto, heightPhoto,
-    confinedWork, confinedApprove, confinedWontDo, needsConfinedPhoto, confinedPhoto,
+    heightClimb, heightApprove, heightWontDo, confinedWork, confinedApprove, confinedWontDo,
+    needsPhoto, employeePhoto,
     driveWill, driveWont, licenceNumber, licenceDate, licenceCategories, licenceFile, consent,
   ]);
 
@@ -480,13 +481,12 @@ export default function SurveyForm({ lang, onLangChange }) {
         heightApprove,
         heightWontDo,
         heightStatus: heightStatusText(),
-        heightPhotoAttached: needsHeightPhoto && !!heightPhoto,
 
         confinedWork,
         confinedApprove,
         confinedWontDo,
         confinedStatus: confinedStatusText(),
-        confinedPhotoAttached: needsConfinedPhoto && !!confinedPhoto,
+        photoAttached: needsPhoto && !!employeePhoto,
 
         driveWill,
         driveWont,
@@ -516,8 +516,7 @@ export default function SurveyForm({ lang, onLangChange }) {
         protocols.forEach((p, index) => attach(p.file, `${safeName}_${t.mailFileNameProtocol}_${index + 1}`));
       }
       if (electroStatus === 'have') attach(electroFile, `${safeName}_${t.mailFileNameElectro}`);
-      if (needsHeightPhoto) attach(heightPhoto, `${t.mailFileNamePhotoHeight}_${safeName}`);
-      if (needsConfinedPhoto) attach(confinedPhoto, `${t.mailFileNamePhotoConfined}_${safeName}`);
+      if (needsPhoto) attach(employeePhoto, `${t.mailFileNamePhoto}_${safeName}`);
       if (driveWill) attach(licenceFile, `${safeName}_${t.mailFileNameLicence}`);
 
       trainings.forEach((item) => {
@@ -557,6 +556,16 @@ export default function SurveyForm({ lang, onLangChange }) {
   const formVisible = sessionEmployees.length === 0 || selectedEmpIndex !== '';
 
   const pid = country.personalId;
+
+  // Фотография одна на оба удостоверения, поэтому заголовок зависит от того,
+  // какие допуски человек отметил
+  const photoTitle =
+    needsHeightPhoto && needsConfinedPhoto
+      ? t.photoTitleBoth
+      : needsHeightPhoto
+        ? t.photoTitleHeight
+        : t.photoTitleConfined;
+
 
   /* ---------------------------------------------------------------- */
   /* Разметка                                                          */
@@ -1315,30 +1324,25 @@ export default function SurveyForm({ lang, onLangChange }) {
                 />
               </div>
 
-              {needsHeightPhoto && (
+              {showPhotoInHeight && (
                 <Panel tone="accent" className="vd-anim-expand">
-                  <SubHeading className="mb-1">{t.photoTitleHeight}</SubHeading>
-                  <p className="text-[11px] sm:text-xs text-vd-muted mb-1 leading-snug">{t.photoComment}</p>
-                  <p className="text-[11px] sm:text-xs text-vd-blue font-semibold mb-3 leading-snug">
-                    {t.photoSeparateNote}
-                  </p>
-                  <div data-field="heightPhoto">
+                  <SubHeading className="mb-1">{photoTitle}</SubHeading>
+                  <p className="text-[11px] sm:text-xs text-vd-muted mb-3 leading-snug">{t.photoComment}</p>
+                  <div data-field="photo">
                     <FileInput
-                      id="height-photo"
-                      file={heightPhoto}
+                      id="employee-photo"
+                      file={employeePhoto}
                       onSelect={(file) => {
-                        clearErr('heightPhoto');
-                        setHeightPhoto(file);
+                        clearErr('photo');
+                        setEmployeePhoto(file);
                       }}
-                      onClear={() => setHeightPhoto(null)}
+                      onClear={() => setEmployeePhoto(null)}
                       label={t.photoUpload}
                       accept="image/*"
-                      invalid={!!err('heightPhoto')}
+                      invalid={!!err('photo')}
                       removeLabel={t.remove}
                     />
-                    {err('heightPhoto') && (
-                      <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('heightPhoto')}</p>
-                    )}
+                    {err('photo') && <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('photo')}</p>}
                   </div>
                 </Panel>
               )}
@@ -1377,30 +1381,25 @@ export default function SurveyForm({ lang, onLangChange }) {
                 />
               </div>
 
-              {needsConfinedPhoto && (
+              {showPhotoInConfined && (
                 <Panel tone="accent" className="vd-anim-expand">
-                  <SubHeading className="mb-1">{t.photoTitleConfined}</SubHeading>
-                  <p className="text-[11px] sm:text-xs text-vd-muted mb-1 leading-snug">{t.photoComment}</p>
-                  <p className="text-[11px] sm:text-xs text-vd-blue font-semibold mb-3 leading-snug">
-                    {t.photoSeparateNote}
-                  </p>
-                  <div data-field="confinedPhoto">
+                  <SubHeading className="mb-1">{photoTitle}</SubHeading>
+                  <p className="text-[11px] sm:text-xs text-vd-muted mb-3 leading-snug">{t.photoComment}</p>
+                  <div data-field="photo">
                     <FileInput
-                      id="confined-photo"
-                      file={confinedPhoto}
+                      id="employee-photo"
+                      file={employeePhoto}
                       onSelect={(file) => {
-                        clearErr('confinedPhoto');
-                        setConfinedPhoto(file);
+                        clearErr('photo');
+                        setEmployeePhoto(file);
                       }}
-                      onClear={() => setConfinedPhoto(null)}
+                      onClear={() => setEmployeePhoto(null)}
                       label={t.photoUpload}
                       accept="image/*"
-                      invalid={!!err('confinedPhoto')}
+                      invalid={!!err('photo')}
                       removeLabel={t.remove}
                     />
-                    {err('confinedPhoto') && (
-                      <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('confinedPhoto')}</p>
-                    )}
+                    {err('photo') && <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('photo')}</p>}
                   </div>
                 </Panel>
               )}
