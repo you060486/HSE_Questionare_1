@@ -181,7 +181,7 @@ function buildEmailHtml(data) {
     const headerCells = columns
         .map(
             (c) =>
-                `<th style="background:#16255C;color:#fff;font:bold 10px Arial;padding:4px 6px;border:1px solid #BFC9D9;white-space:nowrap;">${escapeHtml(
+                `<th style="background:#16255C;color:#fff;font:bold 7px Arial;padding:1px 2px;border:1px solid #BFC9D9;white-space:nowrap;">${escapeHtml(
                     c.header
                 )}</th>`
         )
@@ -190,7 +190,7 @@ function buildEmailHtml(data) {
     const valueCells = columns
         .map(
             (c) =>
-                `<td style="font:11px Arial;padding:4px 6px;border:1px solid #DDE3EC;white-space:nowrap;">${escapeHtml(
+                `<td style="font:8px Arial;padding:1px 2px;border:1px solid #DDE3EC;white-space:nowrap;">${escapeHtml(
                     row[c.key]
                 )}</td>`
         )
@@ -213,31 +213,32 @@ function buildEmailHtml(data) {
         ['Промышленная безопасность', row.prom],
         ['Электробезопасность', row.electro],
         ['Высота / ОЗП', `${row.height} / ${row.confined}`],
-        ['Программа «В»', row.groupV],
         ['Транспорт (SVP)', row.svp + (row.licenceCategories ? ` (${row.licenceCategories})` : '')],
         ['Другие обучения', trainingsText]
     ];
 
     const summaryRows = summaryPairs
+        .filter(([, value]) => String(value || '').trim())
         .map(
             ([label, value]) =>
-                `<tr><td style="font:bold 12px Arial;color:#16255C;padding:3px 10px 3px 0;vertical-align:top;white-space:nowrap;">${escapeHtml(
+                `<tr><td style="font:bold 11px Arial;color:#16255C;padding:1px 8px 1px 0;vertical-align:top;white-space:nowrap;line-height:1.35;">${escapeHtml(
                     label
-                )}</td><td style="font:12px Arial;color:#16203A;padding:3px 0;">${escapeHtml(value || '—')}</td></tr>`
+                )}</td><td style="font:11px Arial;color:#16203A;padding:1px 0;line-height:1.35;">${escapeHtml(value)}</td></tr>`
         )
         .join('');
 
     return `<!doctype html><html><body style="margin:0;padding:16px;background:#F4F6FA;font-family:Arial,sans-serif;">
   <div style="max-width:1100px;margin:0 auto;background:#fff;border-top:3px solid #1B85CE;padding:18px 20px;">
-    <div style="font:bold 11px Arial;letter-spacing:2px;color:#1B85CE;text-transform:uppercase;">Vega Development</div>
-    <div style="font:bold 19px Arial;color:#16255C;margin:4px 0 14px;">Анкета нового работника</div>
+    <div style="font:bold 19px Arial;color:#16255C;margin:0 0 12px;">${escapeHtml(
+        [row.fullName, row.positionRu].filter(Boolean).join(' — ')
+    )}</div>
 
-    <table style="border-collapse:collapse;margin-bottom:20px;">${summaryRows}</table>
+    <table style="border-collapse:collapse;margin-bottom:16px;max-width:520px;">${summaryRows}</table>
 
-    <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:14px;margin-bottom:8px;">
+    <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:12px;margin-bottom:6px;">
       Строка для таблицы
     </div>
-    <div style="font:11px Arial;color:#6A7A93;margin-bottom:8px;">
+    <div style="font:10px Arial;color:#6A7A93;margin-bottom:6px;max-width:520px;">
       Выдели таблицу ниже, скопируй и вставь в свою базу — колонки встанут по местам.
       Тот же набор данных лежит во вложении <b>.xlsx</b>: там можно нажать Ctrl+A и скопировать всё целиком.
     </div>
