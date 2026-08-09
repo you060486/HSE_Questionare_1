@@ -294,7 +294,10 @@ function buildSummaryRow(data) {
         licenceNumber: licence.number || '',
         licenceDate: licence.date || '',
         licenceCategories: (licence.categories || []).join(', '),
-        trainings: (data.trainings || []).map((t) => t.title).filter(Boolean).join('; ')
+        trainings: (data.trainings || [])
+            .filter((t) => t.title)
+            .map((t) => (t.issueDate ? `${t.title} (от ${t.issueDate})` : t.title))
+            .join('; ')
     };
 
     for (let i = 1; i <= PHONE_SLOTS; i += 1) {
