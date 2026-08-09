@@ -8,6 +8,9 @@ const path = require('path');
 const crypto = require('crypto');
 require('dotenv').config();
 
+const { buildColumns, buildSummaryRow, normalizePayload } = require('./table.js');
+const { buildWordDoc } = require('./word.js');
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -18,11 +21,6 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const ADMIN_PASS = process.env.ADMIN_PASS;
 const DEFAULT_RECIPIENTS = 'Andrey.Ryzhov@vegadevelopment.com, Viktoriya.Novikova@vegadevelopment.com';
-
-// Сколько протоколов помещается в сводную таблицу
-const PROTOCOL_SLOTS = 10;
-// Сколько телефонов помещается в сводную таблицу
-const PHONE_SLOTS = 4;
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.yandex.ru',
@@ -48,27 +46,6 @@ function getSessions() {
 
 function saveSessions(data) {
     fs.writeFileSync(SESSIONS_FILE, JSON.stringify(data, null, 2));
-}
-
-/* Транслитерация — если английское имя не передали из админки */
-function transliterate(text) {
-    if (!text) return '';
-    const map = {
-        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh',
-        'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o',
-        'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'h', 'ц': 'ts',
-        'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'
-    };
-    return text
-        .split('')
-        .map((ch) => {
-            const lower = ch.toLowerCase();
-            const replacement = map[lower];
-            if (replacement === undefined) return ch;
-            return ch === lower ? replacement : replacement.toUpperCase();
-        })
-        .join('')
-        .toUpperCase();
 }
 
 /* ------------------------------------------------------------------ */
@@ -108,211 +85,6 @@ app.get('/api/session/:linkId', (req, res) => {
     if (!session) return res.status(404).json({ error: 'Ссылка недействительна или устарела' });
     res.json({ employees: session.employees });
 });
-
-/* ------------------------------------------------------------------ */
-/* Раскладка сводной таблицы                                           */
-/* ------------------------------------------------------------------ */
-// width — ширина столбца в Excel. Держим узкой, чтобы таблицу было удобно
-// выделить целиком и вставить в свою базу.
-function buildColumns() {
-    const columns = [
-        { header: 'Дата анкеты', key: 'submittedAt', width: 11 },
-        { header: 'Место работы', key: 'employer', width: 14 },
-        { header: 'ФИО', key: 'fullName', width: 22 },
-        { header: 'NAME', key: 'nameLatin', width: 18 },
-        { header: 'Должность', key: 'positionRu', width: 18 },
-        { header: 'Position', key: 'positionEn', width: 18 },
-        { header: 'Дата рожд.', key: 'birthDate', width: 11 },
-        { header: 'Гражданство', key: 'citizenship', width: 12 },
-        { header: 'Длит. вахты', key: 'rotation', width: 10 },
-        { header: 'Рабочая почта', key: 'workEmail', width: 22 },
-        { header: 'Личная почта', key: 'personalEmail', width: 22 }
-    ];
-
-    for (let i = 1; i <= PHONE_SLOTS; i += 1) {
-        columns.push({ header: `Телефон ${i}`, key: `phone${i}`, width: 15 });
-    }
-
-    columns.push(
-        { header: 'СНИЛС', key: 'snils', width: 13 },
-        { header: 'ИИН / Личный №', key: 'foreignId', width: 14 },
-        { header: 'ИНН', key: 'inn', width: 13 },
-        { header: 'Паспорт серия и №', key: 'passportNumber', width: 14 },
-        { header: 'Паспорт дата выдачи', key: 'passportDate', width: 11 },
-        { header: 'Паспорт кем выдан', key: 'passportIssuedBy', width: 26 },
-        { header: 'Паспорт код подр.', key: 'passportCode', width: 10 },
-        { header: 'Высота', key: 'height', width: 9 },
-        { header: 'ОЗП', key: 'confined', width: 9 },
-        { header: 'Эл. без.', key: 'electro', width: 12 },
-        { header: 'ЭБ группа', key: 'electroGroup', width: 8 },
-        { header: 'ЭБ дата', key: 'electroDate', width: 11 },
-        { header: 'ЭБ образование', key: 'electroEducation', width: 20 },
-        { header: 'Пром. без.', key: 'prom', width: 12 },
-        { header: 'Все литеры', key: 'allAreas', width: 22 },
-        { header: 'Кол-во протоколов', key: 'protocolCount', width: 8 },
-        { header: 'SVP (транспорт)', key: 'svp', width: 11 },
-        { header: 'ВУ номер', key: 'licenceNumber', width: 13 },
-        { header: 'ВУ дата', key: 'licenceDate', width: 11 },
-        { header: 'ВУ категории', key: 'licenceCategories', width: 13 },
-        { header: 'Другие обучения', key: 'trainings', width: 30 }
-    );
-
-    // Место под протоколы: столбцы есть всегда, пустые просто не заполняются
-    for (let i = 1; i <= PROTOCOL_SLOTS; i += 1) {
-        columns.push(
-            { header: `П${i} №`, key: `protocol${i}Number`, width: 12 },
-            { header: `П${i} дата`, key: `protocol${i}Date`, width: 11 },
-            { header: `П${i} литеры`, key: `protocol${i}Areas`, width: 18 }
-        );
-    }
-
-    return columns;
-}
-
-/**
- * Приводит данные к текущему формату.
- * Боевая и тестовая версии анкеты работают с одним бэкендом, а старая версия
- * присылает поля по-другому. Пока обе живут параллельно, разбираем оба варианта.
- */
-function normalizePayload(raw) {
-    const data = { ...raw };
-
-    // Телефон: раньше приходил один строкой
-    if (!Array.isArray(data.phones)) {
-        data.phones = data.phone ? [data.phone] : [];
-    }
-
-    // Паспорт: раньше лежал отдельными полями верхнего уровня
-    if (!data.passport && data.passportSeriesNumber) {
-        data.passport = {
-            number: data.passportSeriesNumber,
-            issuedBy: data.passportIssuedBy || '',
-            issueDate: data.passportIssueDate || '',
-            deptCode: data.passportDeptCode || ''
-        };
-    }
-
-    // Протоколы: раньше приходили одной строкой вида "№12 от 01.01.2024 гр.Б.8.3"
-    if (!Array.isArray(data.protocols)) {
-        data.protocols = [];
-        if (data.promDetails) {
-            data.legacyPromDetails = data.promDetails;
-        }
-    }
-
-    // Электробезопасность: раньше всё лежало в одной строке
-    if (!data.electroGroup && !data.electroEducation && data.electroDetails) {
-        data.electroEducation = data.electroDetails;
-    }
-
-    // Другие обучения: раньше приходили строкой через точку с запятой
-    if (!Array.isArray(data.trainings)) {
-        data.trainings = String(data.otherTrainingsDetails || '')
-            .split(';')
-            .map((title) => title.trim())
-            .filter(Boolean)
-            .map((title) => ({ code: '', title }));
-    }
-
-    // Идентификатор: в старой версии всегда СНИЛС
-    if (!data.personalIdKey && data.snils) {
-        data.personalIdKey = 'snils';
-        data.personalIdValue = data.snils;
-    }
-
-    return data;
-}
-
-/* Готовит плоский объект «одна строка таблицы» из данных анкеты */
-function buildSummaryRow(data) {
-    const heightStr = (() => {
-        if (data.heightClimb && data.heightApprove) return '2, 3 гр.';
-        if (data.heightClimb) return '2 гр.';
-        if (data.heightApprove) return '3 гр.';
-        return 'не требуется';
-    })();
-
-    const confinedStr = (() => {
-        if (data.confinedWork && data.confinedApprove) return '2, 3 гр.';
-        if (data.confinedWork) return '2 гр.';
-        if (data.confinedApprove) return '3 гр.';
-        return 'не требуется';
-    })();
-
-    let electroStr = 'не требуется';
-    if (data.electroStatusRaw === 'dont_need') electroStr = 'I гр.';
-    else if (data.electroStatusRaw === 'have' || data.electroStatusRaw === 'need') electroStr = 'требуется обучение';
-
-    let promStr = 'не требуется';
-    if (data.promStatusRaw === 'have' || data.promStatusRaw === 'need') promStr = 'требуется обучение';
-
-    const nameLatin =
-        data.nameEn || data.surnameEn
-            ? `${data.nameEn || ''} ${data.surnameEn || ''}`.trim().toUpperCase()
-            : transliterate(data.employeeName);
-
-    const protocols = Array.isArray(data.protocols) ? data.protocols : [];
-    const allAreas = [...new Set(protocols.flatMap((p) => p.areas || []))];
-
-    const phones = Array.isArray(data.phones) ? data.phones : data.phone ? [data.phone] : [];
-
-    const passport = data.passport || {};
-    const licence = data.licence || {};
-
-    const row = {
-        submittedAt: new Date().toLocaleDateString('ru-RU'),
-        employer: data.employer || '',
-        fullName: data.employeeName || '',
-        nameLatin,
-        positionRu: data.positionRu || '',
-        positionEn: data.positionEn || '',
-        birthDate: data.birthDate || '',
-        citizenship: data.citizenship || '',
-        rotation: '',
-        workEmail: data.workEmail || '',
-        personalEmail: data.personalEmail || '',
-
-        snils: data.snils || '',
-        foreignId: data.personalIdKey && data.personalIdKey !== 'snils' ? data.personalIdValue || '' : '',
-        inn: data.inn || '',
-
-        passportNumber: passport.number || '',
-        passportDate: passport.issueDate || '',
-        passportIssuedBy: passport.issuedBy || '',
-        passportCode: passport.deptCode || '',
-
-        height: heightStr,
-        confined: confinedStr,
-        electro: electroStr,
-        electroGroup: data.electroGroup || '',
-        electroDate: data.electroDate || '',
-        electroEducation: data.electroEducation || '',
-        prom: promStr,
-        allAreas: allAreas.length ? allAreas.join(', ') : data.legacyPromDetails || '',
-        protocolCount: protocols.length || '',
-        svp: data.driveWill ? 'требуется' : 'не требуется',
-        licenceNumber: licence.number || '',
-        licenceDate: licence.date || '',
-        licenceCategories: (licence.categories || []).join(', '),
-        trainings: (data.trainings || [])
-            .filter((t) => t.title)
-            .map((t) => (t.issueDate ? `${t.title} (от ${t.issueDate})` : t.title))
-            .join('; ')
-    };
-
-    for (let i = 1; i <= PHONE_SLOTS; i += 1) {
-        row[`phone${i}`] = phones[i - 1] || '';
-    }
-
-    for (let i = 1; i <= PROTOCOL_SLOTS; i += 1) {
-        const protocol = protocols[i - 1];
-        row[`protocol${i}Number`] = protocol ? protocol.number || '' : '';
-        row[`protocol${i}Date`] = protocol ? protocol.date || '' : '';
-        row[`protocol${i}Areas`] = protocol ? (protocol.areas || []).join(', ') : '';
-    }
-
-    return row;
-}
 
 /* ------------------------------------------------------------------ */
 /* Генерация Excel                                                     */
@@ -366,6 +138,7 @@ async function generateExcelBuffer(data) {
         { header: 'ФИО', key: 'fullName', width: 22 },
         { header: 'NAME', key: 'nameLatin', width: 18 },
         { header: '№ протокола', key: 'number', width: 14 },
+        { header: 'Где сдавал', key: 'venue', width: 10 },
         { header: 'Дата', key: 'date', width: 11 },
         { header: 'Литера', key: 'area', width: 10 }
     ];
@@ -383,6 +156,7 @@ async function generateExcelBuffer(data) {
                 fullName: row.fullName,
                 nameLatin: row.nameLatin,
                 number: protocol.number || '',
+                venue: protocol.venue || '',
                 date: protocol.date || '',
                 area
             });
@@ -428,18 +202,26 @@ function buildEmailHtml(data) {
     const tsvHeader = columns.map((c) => c.header).join('\t');
     const tsvValues = columns.map((c) => String(row[c.key] === undefined ? '' : row[c.key])).join('\t');
 
+    const trainingsText = [1, 2, 3, 4, 5]
+        .map((i) => row[`training${i}`])
+        .filter(Boolean)
+        .join('; ');
+
     const summaryPairs = [
         ['Сотрудник', row.fullName],
-        ['Место работы', row.employer],
+        ['Отдел', row.department],
         ['Должность', row.positionRu],
+        ['Место работы', row.employer],
+        ['Вахта', [row.rotationStart, row.rotation].filter(Boolean).join(', ')],
         ['Гражданство', row.citizenship],
-        ['Телефон', [row.phone1, row.phone2, row.phone3, row.phone4].filter(Boolean).join(', ')],
+        ['Телефон', row.phone],
         ['Почта', [row.personalEmail, row.workEmail].filter(Boolean).join(', ')],
-        ['Промышленная безопасность', row.prom + (row.allAreas ? ` (${row.allAreas})` : '')],
-        ['Электробезопасность', row.electro + (row.electroGroup ? `, гр. ${row.electroGroup}` : '')],
+        ['Промышленная безопасность', row.prom],
+        ['Электробезопасность', row.electro],
         ['Высота / ОЗП', `${row.height} / ${row.confined}`],
-        ['Транспорт', row.svp + (row.licenceCategories ? ` (${row.licenceCategories})` : '')],
-        ['Другие обучения', row.trainings || '—']
+        ['Программа «В»', row.groupV],
+        ['Транспорт (SVP)', row.svp + (row.licenceCategories ? ` (${row.licenceCategories})` : '')],
+        ['Другие обучения', trainingsText]
     ];
 
     const summaryRows = summaryPairs
@@ -518,9 +300,14 @@ app.post('/api/submit', upload.any(), (req, res) => {
             const recipients = session ? session.recipients : DEFAULT_RECIPIENTS;
 
             const safeName = String(data.employeeName || 'без_имени').replace(/\s+/g, '_');
+            const row = buildSummaryRow(data);
             const excelBuffer = await generateExcelBuffer(data);
+            const wordHtml = buildWordDoc(row, { consentText: data.consentText });
 
-            const attachments = [{ filename: `Анкета_${safeName}.xlsx`, content: excelBuffer }];
+            const attachments = [
+                { filename: `Анкета_${safeName}.xlsx`, content: excelBuffer },
+                { filename: `Анкета_${safeName}.doc`, content: Buffer.from(wordHtml, 'utf8') }
+            ];
 
             if (req.files) {
                 for (const file of req.files) {
