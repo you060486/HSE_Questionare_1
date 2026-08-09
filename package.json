@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:preview": "vite build --base=/preview/ --outDir=dist-preview",
     "lint": "eslint .",
     "preview": "vite preview"
   },
