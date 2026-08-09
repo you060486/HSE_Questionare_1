@@ -14,10 +14,17 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHashChange);
   }, []);
 
-  // Язык: если человек уже выбирал его в этом браузере, заставку не показываем
-  const savedLang = typeof localStorage !== 'undefined' ? localStorage.getItem(LANG_KEY) : null;
+  // Заставку показываем при каждом открытии анкеты: это первый экран, который
+  // видит работник. Ранее выбранный язык только подставляется по умолчанию.
+  const savedLang = (() => {
+    try {
+      return localStorage.getItem(LANG_KEY);
+    } catch {
+      return null; // приватный режим браузера
+    }
+  })();
   const [lang, setLang] = useState(savedLang === 'en' ? 'en' : 'ru');
-  const [needsLangChoice, setNeedsLangChoice] = useState(!savedLang);
+  const [needsLangChoice, setNeedsLangChoice] = useState(true);
 
   const chooseLang = (value) => {
     setLang(value);
