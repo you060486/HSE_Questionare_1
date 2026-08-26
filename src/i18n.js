@@ -72,7 +72,7 @@ export const translations = {
 
     // Подтверждение подставленной должности
     positionBlockTitle: 'Ваша должность',
-    positionPrefilledHint: 'Должность подставлена из данных отдела кадров. Проверьте и подтвердите',
+    positionPrefilledHint: 'Должность подставлена из данных отдела кадров. Если она неверна — исправьте',
     positionConfirmLabel: 'Должность указана верно',
     positionLabelRu: 'Должность (по-русски)',
     positionLabelEn: 'Position (на английском)',
@@ -284,7 +284,7 @@ export const translations = {
 
     // Position confirmation
     positionBlockTitle: 'Your job title',
-    positionPrefilledHint: 'Taken from HR records. Please check and confirm',
+    positionPrefilledHint: 'Taken from HR records. Correct it if it is wrong',
     positionConfirmLabel: 'The job title is correct',
     positionLabelRu: 'Должность (in Russian)',
     positionLabelEn: 'Position (in English)',

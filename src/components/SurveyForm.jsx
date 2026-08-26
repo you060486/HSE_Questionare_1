@@ -84,7 +84,6 @@ export default function SurveyForm({ lang, onLangChange }) {
   const [positionRu, setPositionRu] = useState('');
   const [positionEn, setPositionEn] = useState('');
   const [positionPrefilled, setPositionPrefilled] = useState(false);
-  const [positionConfirmed, setPositionConfirmed] = useState(false);
   const [positionEditing, setPositionEditing] = useState(false);
 
   const [promStatus, setPromStatus] = useState('');
@@ -147,7 +146,6 @@ export default function SurveyForm({ lang, onLangChange }) {
     setSelectedEmpIndex(index);
     setEmailsConfirmed(false);
     setEmailsEditing(false);
-    setPositionConfirmed(false);
     setPositionEditing(false);
 
     if (index === '-1' || index === '') {
@@ -194,6 +192,28 @@ export default function SurveyForm({ lang, onLangChange }) {
   // Почты показываем на подтверждение, пока человек не решил их править
   const emailsInConfirmMode = emailsPrefilled && !emailsEditing;
   const positionInConfirmMode = positionPrefilled && !positionEditing;
+
+  // Как человек назван в списке «найдите себя». На английском люди ищут себя
+  // по имени и фамилии латиницей, а не по кириллическому ФИО, поэтому порядок
+  // зависит от выбранного языка. Если нужного написания нет — показываем то,
+  // что есть: пустая строка в списке хуже, чем строка на другом языке.
+  const employeeLabel = (emp, index) => {
+    const en = `${emp.nameEn || ''} ${emp.surnameEn || ''}`.trim();
+    const ru = String(emp.fio || '').trim();
+    return (lang === 'en' ? en || ru : ru || en) || `#${index + 1}`;
+  };
+
+  // Должность показываем на языке анкеты. Если на нём её не заполнили —
+  // показываем ту, что есть, вместе с её собственной подписью, чтобы не
+  // выдавать русскую должность за английскую.
+  const positionShown =
+    lang === 'en'
+      ? positionEn
+        ? { label: t.positionLabelEn, value: positionEn }
+        : { label: t.positionLabelRu, value: positionRu }
+      : positionRu
+        ? { label: t.positionLabelRu, value: positionRu }
+        : { label: t.positionLabelEn, value: positionEn };
 
   // Гражданство сменилось — идентификаторы и документ больше не подходят
   const prevCountry = useRef(countryId);
@@ -265,7 +285,6 @@ export default function SurveyForm({ lang, onLangChange }) {
     need('employer', employer !== 'Другое' || filled(employerOther));
     if (country.isOther) need('citizenshipOther', filled(citizenshipOther));
     need('employeeName', filled(employeeName) && employeeName.trim().split(/\s+/).length >= 2);
-    if (positionInConfirmMode) need('positionConfirmed', positionConfirmed, t.positionConfirmRequired);
     need('birthDate', isValidDate(birthDate), t.invalidFormat);
     need('department', department === DEPARTMENT_OTHER ? filled(departmentOther) : filled(department), t.selectAtLeastOne);
     need('rotationStart', isValidDate(rotationStart), t.invalidFormat);
@@ -341,7 +360,6 @@ export default function SurveyForm({ lang, onLangChange }) {
   }, [
     t, country, employer, employerOther, citizenshipOther, employeeName, birthDate, phones, personalEmail, workEmail,
     department, departmentOther, rotationStart, rotation,
-    positionInConfirmMode, positionConfirmed,
     emailsInConfirmMode, emailsConfirmed,
     personalIdValue, taxIdValue, promStatus, electroStatus, needsPassport, needsTaxId, passportNumber, passportIssueDate,
     passportIssuedBy, passportDeptCode, protocols, electroEducation, electroGroup, electroDate, electroFile,
@@ -638,7 +656,7 @@ export default function SurveyForm({ lang, onLangChange }) {
               </option>
               {sessionEmployees.map((emp, index) => (
                 <option key={index} value={String(index)}>
-                  {emp.fio || `${emp.nameEn} ${emp.surnameEn}`.trim() || `#${index + 1}`}
+                  {employeeLabel(emp, index)}
                 </option>
               ))}
               <option value="-1">{t.manualEntry}</option>
@@ -707,7 +725,8 @@ export default function SurveyForm({ lang, onLangChange }) {
                   </div>
                 </Field>
 
-                {/* Должность приходит из отдела кадров — работник её проверяет */}
+                {/* Должность приходит из отдела кадров. Подтверждать её не нужно —
+                    показываем на языке анкеты, поправить можно по желанию */}
                 <div className="sm:col-span-2">
                   {positionInConfirmMode ? (
                     <Panel tone="accent" className="vd-anim-expand space-y-3">
@@ -716,38 +735,16 @@ export default function SurveyForm({ lang, onLangChange }) {
                         <p className="text-[11px] sm:text-xs text-vd-muted">{t.positionPrefilledHint}</p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {[
-                          { label: t.positionLabelRu, value: positionRu },
-                          { label: t.positionLabelEn, value: positionEn },
-                        ]
-                          .filter((row) => row.value)
-                          .map((row) => (
-                            <div key={row.label} className="bg-white border border-vd-line px-3 py-2.5 vd-sharp">
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-vd-muted mb-0.5">
-                                {row.label}
-                              </div>
-                              <div className="text-[13px] sm:text-sm font-semibold text-vd-navy break-words leading-snug">
-                                {row.value}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-
-                      <div data-field="positionConfirmed">
-                        <OptionCard
-                          checked={positionConfirmed}
-                          onChange={(value) => {
-                            clearErr('positionConfirmed');
-                            setPositionConfirmed(value);
-                          }}
-                          label={t.positionConfirmLabel}
-                          invalid={!!err('positionConfirmed')}
-                        />
-                        {err('positionConfirmed') && (
-                          <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('positionConfirmed')}</p>
-                        )}
-                      </div>
+                      {positionShown.value && (
+                        <div className="bg-white border border-vd-line px-3 py-2.5 vd-sharp">
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-vd-muted mb-0.5">
+                            {positionShown.label}
+                          </div>
+                          <div className="text-[13px] sm:text-sm font-semibold text-vd-navy break-words leading-snug">
+                            {positionShown.value}
+                          </div>
+                        </div>
+                      )}
 
                       <Button
                         type="button"
@@ -755,8 +752,6 @@ export default function SurveyForm({ lang, onLangChange }) {
                         className="!px-0"
                         onClick={() => {
                           setPositionEditing(true);
-                          setPositionConfirmed(false);
-                          clearErr('positionConfirmed');
                         }}
                       >
                         <Pencil className="w-4 h-4" /> {t.emailsEdit}
@@ -764,24 +759,29 @@ export default function SurveyForm({ lang, onLangChange }) {
                     </Panel>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label={t.positionLabelRu} hint={positionPrefilled ? t.positionPrefilledHint : undefined}>
-                        <div data-field="positionRu">
-                          <TextInput
-                            value={positionRu}
-                            onChange={setPositionRu}
-                            placeholder={t.positionPlaceholderRu}
-                          />
-                        </div>
-                      </Field>
-                      <Field label={t.positionLabelEn}>
-                        <div data-field="positionEn">
-                          <TextInput
-                            value={positionEn}
-                            onChange={setPositionEn}
-                            placeholder={t.positionPlaceholderEn}
-                          />
-                        </div>
-                      </Field>
+                      {/* Первым идёт поле на языке анкеты: свою должность человек
+                          правит на том языке, на котором заполняет всё остальное.
+                          Второе поле остаётся — обе записи нужны отделу кадров. */}
+                      {(lang === 'en'
+                        ? [
+                            { key: 'positionEn', label: t.positionLabelEn, value: positionEn, set: setPositionEn, placeholder: t.positionPlaceholderEn },
+                            { key: 'positionRu', label: t.positionLabelRu, value: positionRu, set: setPositionRu, placeholder: t.positionPlaceholderRu },
+                          ]
+                        : [
+                            { key: 'positionRu', label: t.positionLabelRu, value: positionRu, set: setPositionRu, placeholder: t.positionPlaceholderRu },
+                            { key: 'positionEn', label: t.positionLabelEn, value: positionEn, set: setPositionEn, placeholder: t.positionPlaceholderEn },
+                          ]
+                      ).map((row, rowIndex) => (
+                        <Field
+                          key={row.key}
+                          label={row.label}
+                          hint={rowIndex === 0 && positionPrefilled ? t.positionPrefilledHint : undefined}
+                        >
+                          <div data-field={row.key}>
+                            <TextInput value={row.value} onChange={row.set} placeholder={row.placeholder} />
+                          </div>
+                        </Field>
+                      ))}
                     </div>
                   )}
                 </div>
