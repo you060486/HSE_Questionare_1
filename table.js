@@ -196,7 +196,10 @@ function buildSummaryRow(data) {
     /* --- К1–К17: работник --- */
     row.status = 'Employed';
     row.employer = data.employer || '';
-    row.fullName = data.employeeName || '';
+    // Колонка ФИО остаётся кириллической даже тогда, когда анкету заполняли
+    // на английском и в видимом поле стояла латиница. Старые анкеты поля
+    // fioRu не присылают — для них поведение прежнее.
+    row.fullName = data.fioRu || data.employeeName || '';
     row.nameLatin =
         data.nameEn || data.surnameEn
             ? `${data.nameEn || ''} ${data.surnameEn || ''}`.trim().toUpperCase()
