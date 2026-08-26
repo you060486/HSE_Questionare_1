@@ -10,6 +10,20 @@ import { DEPARTMENTS, DEPARTMENT_OTHER, ROTATIONS, ROTATION_OTHER, PROTOCOL_VENU
 import { isValidDate } from '../lib/format.js';
 import { VegaLogo } from './Logo.jsx';
 import SmartSelect from './SmartSelect.jsx';
+
+/**
+ * Как зовут человека на языке анкеты.
+ *
+ * Русские заполняют кириллицей, англоязычные — латиницей: «Ivanov Ivan» в поле
+ * ФИО для англичанина понятнее, чем «Иванов Иван Иванович». Если нужного
+ * написания в данных нет, возвращаем то, что есть: пустое поле хуже, чем
+ * заполненное на другом языке.
+ */
+function employeeNameFor(emp, language) {
+  const en = `${emp?.nameEn || ''} ${emp?.surnameEn || ''}`.trim();
+  const ru = String(emp?.fio || '').trim();
+  return language === 'en' ? en || ru : ru || en;
+}
 import {
   Section,
   SubHeading,
@@ -79,6 +93,10 @@ export default function SurveyForm({ lang, onLangChange }) {
   // Латиница из ссылки — уходит в таблицу, работник её не видит
   const [nameEn, setNameEn] = useState('');
   const [surnameEn, setSurnameEn] = useState('');
+  // Русское ФИО из ссылки. В поле его может не быть — англоязычный видит там
+  // латиницу, — но в таблице кадров под кириллицу отдельная колонка,
+  // и терять её из-за выбранного языка нельзя.
+  const [fioRu, setFioRu] = useState('');
 
   // Должность подставляется из ссылки, но работник её проверяет и подтверждает
   const [positionRu, setPositionRu] = useState('');
@@ -155,6 +173,7 @@ export default function SurveyForm({ lang, onLangChange }) {
       setEmailsPrefilled(false);
       setNameEn('');
       setSurnameEn('');
+      setFioRu('');
       setPositionRu('');
       setPositionEn('');
       setPositionPrefilled(false);
@@ -163,13 +182,14 @@ export default function SurveyForm({ lang, onLangChange }) {
 
     const emp = sessionEmployees[index];
     if (!emp) return;
-    setEmployeeName(emp.fio || '');
+    setEmployeeName(employeeNameFor(emp, lang));
     setPersonalEmail(emp.email || '');
     setWorkEmail(emp.workEmail || '');
     // Режим подтверждения включаем, только если подставились обе почты
     setEmailsPrefilled(Boolean(emp.email && emp.workEmail));
     setNameEn(emp.nameEn || '');
     setSurnameEn(emp.surnameEn || '');
+    setFioRu(emp.fio || '');
     setPositionRu(emp.posRu || '');
     setPositionEn(emp.posEn || '');
     // Режим подтверждения включаем, только если должность вообще подставилась
@@ -197,11 +217,7 @@ export default function SurveyForm({ lang, onLangChange }) {
   // по имени и фамилии латиницей, а не по кириллическому ФИО, поэтому порядок
   // зависит от выбранного языка. Если нужного написания нет — показываем то,
   // что есть: пустая строка в списке хуже, чем строка на другом языке.
-  const employeeLabel = (emp, index) => {
-    const en = `${emp.nameEn || ''} ${emp.surnameEn || ''}`.trim();
-    const ru = String(emp.fio || '').trim();
-    return (lang === 'en' ? en || ru : ru || en) || `#${index + 1}`;
-  };
+  const employeeLabel = (emp, index) => employeeNameFor(emp, lang) || `#${index + 1}`;
 
   // Должность показываем на языке анкеты. Если на нём её не заполнили —
   // показываем ту, что есть, вместе с её собственной подписью, чтобы не
@@ -214,6 +230,22 @@ export default function SurveyForm({ lang, onLangChange }) {
       : positionRu
         ? { label: t.positionLabelRu, value: positionRu }
         : { label: t.positionLabelEn, value: positionEn };
+
+  // Язык переключили уже после того, как человек нашёл себя в списке. Если поле
+  // с именем никто не правил, показываем его на новом языке. Если правил руками —
+  // не трогаем: иначе исправление молча пропадёт при случайном нажатии RU/EN.
+  const prevLang = useRef(lang);
+  useEffect(() => {
+    const was = prevLang.current;
+    prevLang.current = lang;
+    if (was === lang) return;
+    if (selectedEmpIndex === '' || selectedEmpIndex === '-1') return;
+    const emp = sessionEmployees[Number(selectedEmpIndex)];
+    if (!emp) return;
+    setEmployeeName((current) =>
+      current === employeeNameFor(emp, was) ? employeeNameFor(emp, lang) : current,
+    );
+  }, [lang, selectedEmpIndex, sessionEmployees]);
 
   // Гражданство сменилось — идентификаторы и документ больше не подходят
   const prevCountry = useRef(countryId);
@@ -465,6 +497,9 @@ export default function SurveyForm({ lang, onLangChange }) {
         countryId: country.id,
 
         employeeName: employeeName.trim(),
+        // Кириллическое ФИО отдельно: у англоязычного в видимом поле латиница,
+        // а колонка «ФИО» в таблице кадров должна остаться русской.
+        fioRu: fioRu.trim(),
         nameEn,
         surnameEn,
         positionRu: positionRu.trim(),
