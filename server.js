@@ -9,6 +9,12 @@ const crypto = require('crypto');
 require('dotenv').config();
 
 const { buildColumns, buildSummaryRow, normalizePayload } = require('./table.js');
+const {
+    buildVisitorColumns,
+    buildVisitorRow,
+    buildVisitorEmailHtml,
+    buildVisitorEmailText,
+} = require('./visitor.js');
 
 /** Лог с отметкой времени — без него разбирать «письмо не пришло» невозможно */
 function log(message) {
@@ -29,6 +35,9 @@ const ADMIN_PASS = process.env.ADMIN_PASS;
 const MAX_ATTACHMENTS_BYTES = 18 * 1024 * 1024;
 
 const DEFAULT_RECIPIENTS = 'Andrey.Ryzhov@vegadevelopment.com, Viktoriya.Novikova@vegadevelopment.com';
+// Заявки визитёров по умолчанию идут отдельным адресом, чтобы не смешиваться
+// с анкетами работников в ящике отдела охраны труда
+const DEFAULT_VISITOR_RECIPIENTS = process.env.VISITOR_RECIPIENTS || 'Andrey.Ryzhov@vegadevelopment.com';
 
 const transporter = nodemailer.createTransport({
     host: 'smtp.yandex.ru',
@@ -53,17 +62,41 @@ function getSessions() {
 }
 
 function saveSessions(data) {
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(data, null, 2));
+    // Пишем во временный файл и переименовываем: rename в пределах одной
+    // файловой системы атомарен. Прямая запись поверх живого файла означала,
+    // что обрыв (диск, kill, рестарт) оставит битый JSON — а тогда getSessions
+    // вернёт {} и ВСЕ выданные ссылки разом станут недействительными.
+    const tmp = `${SESSIONS_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(tmp, SESSIONS_FILE);
 }
 
 /* ------------------------------------------------------------------ */
 /* Эндпоинты админки                                                   */
 /* ------------------------------------------------------------------ */
 app.post('/api/admin/create-link', (req, res) => {
-    const { password, recipients, employees } = req.body;
+    const { password, recipients, employees, kind } = req.body;
 
     if (password !== ADMIN_PASS) {
         return res.status(403).json({ error: 'Неверный пароль' });
+    }
+
+    // Ссылка визитёра — та же запись, но с другим типом и без списка работников
+    if (kind === 'visitor') {
+        const linkId = crypto.randomBytes(8).toString('hex');
+        const sessions = getSessions();
+        sessions[linkId] = {
+            createdAt: new Date().toISOString(),
+            kind: 'visitor',
+            recipients: recipients || DEFAULT_VISITOR_RECIPIENTS,
+            // Пишем всегда, даже пустым: когда в админке появятся доп. адреса
+            // для Полярного Экспресса, старые записи не придётся переносить
+            polarRecipients: '',
+            employees: []
+        };
+        saveSessions(sessions);
+        log(`создана ссылка визитёра ${linkId} | получатели: ${sessions[linkId].recipients}`);
+        return res.json({ linkId, kind: 'visitor' });
     }
 
     const processedEmployees = (employees || []).map((emp) => {
@@ -91,7 +124,22 @@ app.get('/api/session/:linkId', (req, res) => {
     const sessions = getSessions();
     const session = sessions[req.params.linkId];
     if (!session) return res.status(404).json({ error: 'Ссылка недействительна или устарела' });
+    // У старых записей поля kind нет — они считаются ссылками работника
+    if (session.kind === 'visitor') {
+        return res.status(404).json({ error: 'Это ссылка для визитёра' });
+    }
     res.json({ employees: session.employees });
+});
+
+/** Проверка ссылки визитёра. Данных из сессии анкете визитёра не нужно —
+ *  нужен только ответ, действительна ссылка или нет. */
+app.get('/api/visitor/session/:linkId', (req, res) => {
+    const sessions = getSessions();
+    const session = sessions[req.params.linkId];
+    if (!session || session.kind !== 'visitor') {
+        return res.status(404).json({ error: 'Ссылка недействительна или устарела' });
+    }
+    res.json({ ok: true });
 });
 
 /* ------------------------------------------------------------------ */
@@ -374,6 +422,121 @@ app.post('/api/submit', upload.any(), (req, res) => {
         }
     // Без этого одна упавшая отправка навсегда обрывает очередь
     // и все следующие анкеты молча перестают обрабатываться
+    }).catch((error) => {
+        log(`СБОЙ ОЧЕРЕДИ: ${error && error.message ? error.message : error}`);
+    });
+});
+
+/* ------------------------------------------------------------------ */
+/* Приём заявки визитёра                                               */
+/* ------------------------------------------------------------------ */
+/** Excel заявки визитёра: одна строка, свои десять колонок */
+async function generateVisitorExcelBuffer(data) {
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Vega Development — заявка визитёра';
+    workbook.created = new Date();
+
+    const sheet = workbook.addWorksheet('Визитёр', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheet.columns = buildVisitorColumns();
+
+    const header = sheet.getRow(1);
+    header.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
+    header.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+    header.height = 28;
+    header.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16255C' } };
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FFBFC9D9' } },
+            left: { style: 'thin', color: { argb: 'FFBFC9D9' } },
+            bottom: { style: 'thin', color: { argb: 'FFBFC9D9' } },
+            right: { style: 'thin', color: { argb: 'FFBFC9D9' } }
+        };
+    });
+
+    const dataRow = sheet.addRow(buildVisitorRow(data));
+    dataRow.font = { size: 10 };
+    dataRow.alignment = { vertical: 'top', wrapText: false };
+    dataRow.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = {
+            top: { style: 'thin', color: { argb: 'FFDDE3EC' } },
+            left: { style: 'thin', color: { argb: 'FFDDE3EC' } },
+            bottom: { style: 'thin', color: { argb: 'FFDDE3EC' } },
+            right: { style: 'thin', color: { argb: 'FFDDE3EC' } }
+        };
+    });
+
+    return workbook.xlsx.writeBuffer();
+}
+
+// Очередь та же, что у анкеты работника: одно соединение к SMTP и
+// гарантированный порядок отправки. Своей очереди визитёр не заводит.
+app.post('/api/visitor/submit', upload.any(), (req, res) => {
+    submissionQueue = submissionQueue.then(async () => {
+        const cleanup = () => {
+            if (req.files) {
+                req.files.forEach((f) => {
+                    try {
+                        if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+                    } catch (e) {
+                        console.error('Не удалось удалить файл:', f.path, e.message);
+                    }
+                });
+            }
+        };
+
+        try {
+            // Форма присылает multipart с полем data, но на всякий случай
+            // разбираем и обычный JSON: express.json() подключён глобально
+            const raw = req.body && typeof req.body.data === 'string' ? req.body.data : null;
+            const data = raw ? JSON.parse(raw) : req.body || {};
+
+            const sessions = getSessions();
+            const session = data.linkId ? sessions[data.linkId] : null;
+
+            let recipients = DEFAULT_VISITOR_RECIPIENTS;
+            if (session && session.kind === 'visitor' && session.recipients) {
+                recipients = session.recipients;
+            } else if (data.linkId) {
+                // Данные человека важнее строгости: отправляем на адрес по умолчанию,
+                // а расхождение фиксируем в логе
+                log(`ВНИМАНИЕ: заявка визитёра по неизвестной ссылке ${data.linkId}, отправляю на ${recipients}`);
+            }
+
+            const visitorName = String(data.fullName || 'без_имени').trim();
+            const safeName = visitorName.replace(/\s+/g, '_');
+            const excelBuffer = await generateVisitorExcelBuffer(data);
+            const attachments = [{ filename: `Визитёр_${safeName}.xlsx`, content: excelBuffer }];
+
+            const totalBytes = attachments.reduce((sum, a) => sum + (a.content ? a.content.length : 0), 0);
+            log(`заявка визитёра: ${visitorName} | получатели: ${recipients} | вес: ${(totalBytes / 1048576).toFixed(2)} МБ`);
+
+            if (totalBytes > MAX_ATTACHMENTS_BYTES) {
+                log(`ОТКАЗ: вложение слишком тяжёлое (${(totalBytes / 1048576).toFixed(1)} МБ)`);
+                cleanup();
+                return res.status(413).json({ error: 'too-large' });
+            }
+
+            const info = await transporter.sendMail({
+                from: `Заявка визитёра <${SMTP_USER}>`,
+                replyTo: data.email || SMTP_USER,
+                to: recipients,
+                subject: `Заявка визитёра — ${visitorName}`,
+                html: buildVisitorEmailHtml(data),
+                text: buildVisitorEmailText(data),
+                attachments
+            });
+
+            log(`отправлено: ${info.messageId} | принято: ${JSON.stringify(info.accepted)} | отклонено: ${JSON.stringify(info.rejected)} | ответ: ${info.response}`);
+
+            cleanup();
+            res.status(200).json({ success: true });
+        } catch (error) {
+            log(`ОШИБКА заявки визитёра: ${error.message || error}`);
+            if (error.response) log(`  ответ SMTP: ${error.response}`);
+            if (error.stack) log(`  ${error.stack.split('\n').slice(1, 3).join(' | ')}`);
+            cleanup();
+            if (!res.headersSent) res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+        }
     }).catch((error) => {
         log(`СБОЙ ОЧЕРЕДИ: ${error && error.message ? error.message : error}`);
     });
