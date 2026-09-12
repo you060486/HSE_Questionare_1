@@ -24,13 +24,37 @@ function parseRuDate(value) {
 }
 
 /** Сколько дней осталось до конца пятилетнего срока действия протокола */
+// Объекты стоят на Чукотке (Билибино, Порт Чаун, Песчанка) — это UTC+12,
+// а сервер может жить в любом поясе. Без явного пояса «сегодня» на сервере
+// десять часов в сутки не совпадает с «сегодня» на площадке, и остаток срока
+// действия удостоверения выходит на день больше или меньше.
+const SITE_TIME_ZONE = 'Asia/Anadyr';
+
+function todayOnSite(timeZone = SITE_TIME_ZONE) {
+    // en-CA даёт ровно ГГГГ-ММ-ДД — разбирать нечего
+    let parts;
+    try {
+        parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        })
+            .format(new Date())
+            .split('-')
+            .map(Number);
+    } catch {
+        const now = new Date(); // пояс неизвестен системе — считаем по серверу
+        parts = [now.getFullYear(), now.getMonth() + 1, now.getDate()];
+    }
+    return Date.UTC(parts[0], parts[1] - 1, parts[2]);
+}
+
 function daysLeft(dateString, years = ATTESTATION_VALID_YEARS) {
     const issued = parseRuDate(dateString);
     if (!issued) return null;
     const expires = Date.UTC(issued.getUTCFullYear() + years, issued.getUTCMonth(), issued.getUTCDate());
-    const now = new Date();
-    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-    return Math.round((expires - today) / 86400000);
+    return Math.round((expires - todayOnSite()) / 86400000);
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,6 +146,46 @@ function buildColumns() {
     return COLUMNS.map((c) => ({ header: c.header, key: c.key, width: c.width }));
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Строка для вставки в таблицу                                        */
+/* ------------------------------------------------------------------ */
+// Только значения, без заголовков, все 52 ячейки — включая пустые.
+// Пустые ячейки обязательны: без них колонки при вставке съедут.
+// Один код на анкету работника и на заявку визитёра, чтобы формат совпадал.
+
+const escapeHtml = (value) =>
+    String(value === undefined || value === null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+
+/** Одна строка HTML-таблицы: 52 ячейки значений */
+function buildCopyRowHtml(row) {
+    const cells = COLUMNS.map(
+        (c) =>
+            `<td style="font:11px Arial;padding:3px 6px;border:1px solid #DDE3EC;vertical-align:top;white-space:nowrap;">${escapeHtml(
+                row[c.key]
+            )}</td>`
+    ).join('');
+    return `<table style="border-collapse:collapse;"><tr>${cells}</tr></table>`;
+}
+
+/** Та же строка через табуляцию — ею кормится кнопка копирования */
+function buildCopyRowTsv(row) {
+    return COLUMNS.map((c) => {
+        const value = row[c.key];
+        // Табуляции и переводы строк внутри значения разорвали бы строку на ячейки
+        return String(value === undefined || value === null ? '' : value).replace(/[\t\r\n]+/g, ' ');
+    }).join('\t');
+}
+
+/** Порядок колонок подписью — рядом с таблицей, но не внутри неё */
+function columnOrderHint() {
+    return COLUMNS.map((c, i) => `${i + 1}. ${c.header}`).join(' · ');
+}
+
 /* ------------------------------------------------------------------ */
 /* Совместимость со старым форматом анкеты                             */
 /* ------------------------------------------------------------------ */
@@ -192,6 +256,22 @@ function buildSummaryRow(data) {
     COLUMNS.forEach((c) => {
         row[c.key] = '';
     });
+
+    // Заявка визитёра идёт тем же набором из 52 колонок, чтобы строку можно было
+    // вставить в ту же таблицу. Заполняется только то, что у визитёра спросили;
+    // направления посещения и характер работ в колонки не кладём — их место
+    // в теле письма. Обучения не трогаем вовсе: у визитёра про них не спрашивали,
+    // и «не требуется» было бы выдумкой.
+    if (data.formType === 'visitor') {
+        row.status = 'Visitor';
+        row.fullName = String(data.fullName || '').trim();
+        row.nameLatin = transliterate(row.fullName);
+        row.positionRu = String(data.position || '').trim();
+        row.birthDate = String(data.birthDate || '').trim();
+        row.personalEmail = String(data.email || '').trim();
+        row.phone = String(data.phone || '').trim();
+        return row;
+    }
 
     /* --- К1–К17: работник --- */
     row.status = 'Employed';
@@ -307,6 +387,10 @@ function buildSummaryRow(data) {
 
 module.exports = {
     COLUMNS,
+    buildCopyRowHtml,
+    buildCopyRowTsv,
+    columnOrderHint,
+    escapeHtml,
     normalizePayload,
     PROTOCOL_SLOTS,
     TRAINING_SLOTS,
@@ -314,5 +398,7 @@ module.exports = {
     buildSummaryRow,
     transliterate,
     daysLeft,
+    todayOnSite,
+    SITE_TIME_ZONE,
     parseRuDate,
 };

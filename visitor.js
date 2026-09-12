@@ -1,33 +1,15 @@
-// Анкета визитёра: свой набор колонок, своя строка и своё письмо.
+// Заявка визитёра: письмо и вспомогательные проверки.
 //
-// Почему отдельно от table.js: там 52 колонки под работника, жёстко
-// проставленный status = 'Employed' и расчёты обучений, которые визитёру
-// не нужны. Прогон визитёра через тот же код дал бы строку, где заполнено
-// восемь полей из пятидесяти двух, а в трёх графах стояло бы «не требуется».
+// Таблица у визитёра ТА ЖЕ, что у работника — те же 52 колонки из table.js,
+// чтобы строку можно было вставить в ту же базу. Заполняется только то, что
+// у визитёра спросили (см. ветку formType === 'visitor' в buildSummaryRow).
+//
+// То, чему в 52 колонках места нет — направления посещения, характер работ
+// и признак Полярного Экспресса — выводится в ТЕЛЕ письма.
 
-/* ------------------------------------------------------------------ */
-/* Колонки                                                             */
-/* ------------------------------------------------------------------ */
-const VISITOR_COLUMNS = [
-    { n: 1, key: 'status', header: 'Статус', width: 10 },
-    { n: 2, key: 'submittedAt', header: 'Дата заявки', width: 12 },
-    { n: 3, key: 'fullName', header: 'ФИО', width: 28 },
-    { n: 4, key: 'position', header: 'Должность', width: 24 },
-    { n: 5, key: 'birthDate', header: 'Дата рождения', width: 13 },
-    { n: 6, key: 'directions', header: 'Направления посещения', width: 52 },
-    { n: 7, key: 'visitMode', header: 'Характер работ', width: 26 },
-    { n: 8, key: 'phone', header: 'Телефон', width: 20 },
-    { n: 9, key: 'email', header: 'Электронная почта', width: 26 },
-    // Считается из кодов направлений. Нужна, чтобы после включения доп. адресов
-    // можно было по таблице проверить, должна ли была сработать рассылка.
-    { n: 10, key: 'polarExpress', header: 'Полярный Экспресс', width: 12 },
-];
+const { buildSummaryRow, buildCopyRowHtml, columnOrderHint, escapeHtml } = require('./table.js');
 
-function buildVisitorColumns() {
-    return VISITOR_COLUMNS.map((c) => ({ header: c.header, key: c.key, width: c.width }));
-}
-
-/** Признак объектов Полярного Экспресса — по кодам, не по тексту */
+/** Признак объектов Полярного Экспресса — по кодам, не по присланному тексту */
 const POLAR_EXPRESS_CODES = ['ПЭ-дорога'];
 
 function visitorTouchesPolarExpress(data) {
@@ -35,58 +17,25 @@ function visitorTouchesPolarExpress(data) {
     return directions.some((d) => POLAR_EXPRESS_CODES.includes(d && d.code ? d.code : d));
 }
 
-/* ------------------------------------------------------------------ */
-/* Строка таблицы                                                      */
-/* ------------------------------------------------------------------ */
-function buildVisitorRow(data) {
-    const row = {};
-    VISITOR_COLUMNS.forEach((c) => {
-        row[c.key] = '';
-    });
-
-    // Отличает визитёра от работника, если строки лягут в одну таблицу
-    row.status = 'Visitor';
-    row.submittedAt = new Date().toLocaleDateString('ru-RU');
-    row.fullName = String(data.fullName || '').trim();
-    row.position = String(data.position || '').trim();
-    row.birthDate = String(data.birthDate || '').trim();
-
-    // Расшифровки приходят с фронтенда из общего справочника directions.js —
-    // так список направлений остаётся в одном месте и не расходится
+/** Список направлений в виде текста */
+function directionTexts(data) {
     const directions = Array.isArray(data.directions) ? data.directions : [];
-    row.directions = directions
-        .map((d) => String(d && d.ru ? d.ru : d || '').trim())
-        .filter(Boolean)
-        .join('; ');
-
-    row.visitMode = String(data.visitModeText || '').trim();
-    row.phone = String(data.phone || '').trim();
-    row.email = String(data.email || '').trim();
-    row.polarExpress = visitorTouchesPolarExpress(data) ? 'да' : '';
-
-    return row;
+    return directions.map((d) => String(d && d.ru ? d.ru : d || '').trim()).filter(Boolean);
 }
 
 /* ------------------------------------------------------------------ */
-/* Письмо                                                              */
+/* Письмо                                                             */
 /* ------------------------------------------------------------------ */
-const escapeHtml = (value) =>
-    String(value === undefined || value === null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-function buildVisitorEmailHtml(data) {
-    const columns = buildVisitorColumns();
-    const row = buildVisitorRow(data);
+function buildVisitorEmailHtml(data, options = {}) {
+    const row = buildSummaryRow({ ...data, formType: 'visitor' });
+    const directions = directionTexts(data);
+    const visitMode = String(data.visitModeText || '').trim();
+    const isPolar = visitorTouchesPolarExpress(data);
 
     const pairs = [
-        ['Должность', row.position],
         ['Дата рождения', row.birthDate],
-        ['Направления посещения', row.directions],
-        ['Характер работ', row.visitMode],
         ['Телефон', row.phone],
-        ['Электронная почта', row.email],
+        ['Электронная почта', row.personalEmail],
     ];
 
     const summaryRows = pairs
@@ -101,43 +50,67 @@ function buildVisitorEmailHtml(data) {
         )
         .join('');
 
-    // Строка для вставки в готовую таблицу: ТОЛЬКО значения, без заголовков.
-    // Пустые ячейки обязательно сохраняются — иначе при вставке колонки съедут.
-    const valueCells = columns
-        .map(
-            (c) =>
-                `<td style="font:11px Arial;padding:3px 6px;border:1px solid #DDE3EC;vertical-align:top;">${escapeHtml(
-                    row[c.key]
-                )}</td>`
-        )
-        .join('');
+    const directionsList = directions.length
+        ? `<ul style="margin:4px 0 0;padding-left:18px;font:12px Arial;color:#16203A;">${directions
+              .map((d) => `<li style="margin-bottom:3px;">${escapeHtml(d)}</li>`)
+              .join('')}</ul>`
+        : '<div style="font:12px Arial;color:#6A7A93;">не указаны</div>';
 
-    // Порядок колонок показываем подписью рядом, а не строкой в таблице,
-    // чтобы он не попал в буфер вместе с данными
-    const order = columns.map((c, i) => `${i + 1}. ${c.header}`).join(' · ');
+    const polarNote = isPolar
+        ? `<div style="margin-top:10px;padding:8px 10px;background:#EAF3FA;border-left:3px solid #1B85CE;font:bold 12px Arial;color:#16255C;">
+             Среди выбранных направлений есть объекты Полярного Экспресса
+           </div>`
+        : '';
+
+    // Кнопку в письме нажать нельзя — почтовые клиенты не исполняют скрипты.
+    // Поэтому даём ссылку на страницу, где кнопка настоящая.
+    const copyButton = options.copyUrl
+        ? `<div style="margin:14px 0 6px;">
+             <a href="${escapeHtml(options.copyUrl)}"
+                style="display:inline-block;background:#16255C;color:#ffffff;text-decoration:none;
+                       font:bold 12px Arial;padding:10px 16px;border-radius:2px;">
+               Скопировать информацию о визитёре для реестра
+             </a>
+           </div>
+           <div style="font:10px Arial;color:#6A7A93;margin-bottom:10px;max-width:620px;">
+             Ссылка открывает страницу с кнопкой «Копировать». Данные передаются в самой ссылке
+             и на сервере не сохраняются.
+           </div>`
+        : '';
 
     return `<!doctype html><html><body style="margin:0;padding:16px;background:#F4F6FA;font-family:Arial,sans-serif;">
-  <div style="max-width:900px;margin:0 auto;background:#fff;border-top:3px solid #1B85CE;padding:18px 20px;">
+  <div style="max-width:1100px;margin:0 auto;background:#fff;border-top:3px solid #1B85CE;padding:18px 20px;">
     <div style="font:bold 11px Arial;letter-spacing:1.5px;color:#1B85CE;text-transform:uppercase;margin-bottom:6px;">Заявка на посещение объектов</div>
     <div style="font:bold 19px Arial;color:#16255C;margin:0 0 12px;">${escapeHtml(
-        [row.fullName, row.position].filter(Boolean).join(' — ')
+        [row.fullName, row.positionRu].filter(Boolean).join(' — ')
     )}</div>
 
-    <table style="border-collapse:collapse;margin-bottom:16px;max-width:560px;">${summaryRows}</table>
+    <table style="border-collapse:collapse;margin-bottom:16px;max-width:520px;">${summaryRows}</table>
 
-    <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:12px;margin-bottom:6px;">
+    <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:12px;margin-bottom:4px;">
+      Посещение объектов
+    </div>
+    <div style="font:10px Arial;color:#6A7A93;margin-bottom:4px;">
+      Этих сведений в сводной таблице нет — они только здесь
+    </div>
+    ${directionsList}
+    <div style="font:12px Arial;color:#16203A;margin-top:8px;">
+      <b>Характер работ:</b> ${escapeHtml(visitMode || 'не указан')}
+    </div>
+    ${polarNote}
+
+    <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:12px;margin:16px 0 6px;">
       Строка для вставки в таблицу
     </div>
+    ${copyButton}
     <div style="font:10px Arial;color:#6A7A93;margin-bottom:6px;max-width:620px;">
-      Здесь только данные, без заголовков — выделите строку, скопируйте и вставьте в свою таблицу.
-      Пустые ячейки сохранены, поэтому колонки не съедут.<br>
-      Порядок колонок: ${escapeHtml(order)}
+      Формат тот же, что у анкеты работника — 52 колонки. Здесь только данные, без заголовков;
+      пустые ячейки сохранены, поэтому колонки не съедут.<br>
+      Порядок колонок: ${escapeHtml(columnOrderHint())}
     </div>
 
-    <div style="max-width:860px;">
-      <table style="border-collapse:collapse;">
-        <tr>${valueCells}</tr>
-      </table>
+    <div style="max-width:1060px;overflow-x:auto;">
+      ${buildCopyRowHtml(row)}
     </div>
 
     <div style="font:11px Arial;color:#6A7A93;border-top:1px solid #DDE3EC;margin-top:20px;padding-top:12px;">
@@ -148,28 +121,32 @@ function buildVisitorEmailHtml(data) {
 }
 
 function buildVisitorEmailText(data) {
-    const columns = buildVisitorColumns();
-    const row = buildVisitorRow(data);
+    const row = buildSummaryRow({ ...data, formType: 'visitor' });
     const lines = [
-        [row.fullName, row.position].filter(Boolean).join(' — '),
+        [row.fullName, row.positionRu].filter(Boolean).join(' — '),
         '',
         'Заявка визитёра на посещение объектов. Сводная таблица во вложении .xlsx',
         '',
     ];
-    columns.forEach((c) => {
-        const value = row[c.key];
-        if (value === undefined || value === null || String(value).trim() === '') return;
-        lines.push(`${c.header}: ${value}`);
-    });
+    if (row.birthDate) lines.push(`Дата рождения: ${row.birthDate}`);
+    if (row.phone) lines.push(`Телефон: ${row.phone}`);
+    if (row.personalEmail) lines.push(`Электронная почта: ${row.personalEmail}`);
+
+    lines.push('', 'Посещение объектов:');
+    const directions = directionTexts(data);
+    if (directions.length) directions.forEach((d) => lines.push(`  — ${d}`));
+    else lines.push('  не указаны');
+    lines.push(`Характер работ: ${data.visitModeText || 'не указан'}`);
+    if (visitorTouchesPolarExpress(data)) {
+        lines.push('ВНИМАНИЕ: среди направлений есть объекты Полярного Экспресса');
+    }
     return lines.join('\n');
 }
 
 module.exports = {
-    VISITOR_COLUMNS,
     POLAR_EXPRESS_CODES,
-    buildVisitorColumns,
-    buildVisitorRow,
     visitorTouchesPolarExpress,
+    directionTexts,
     buildVisitorEmailHtml,
     buildVisitorEmailText,
 };

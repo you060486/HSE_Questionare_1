@@ -8,13 +8,16 @@ const path = require('path');
 const crypto = require('crypto');
 require('dotenv').config();
 
-const { buildColumns, buildSummaryRow, normalizePayload } = require('./table.js');
 const {
-    buildVisitorColumns,
-    buildVisitorRow,
-    buildVisitorEmailHtml,
-    buildVisitorEmailText,
-} = require('./visitor.js');
+    buildColumns,
+    buildSummaryRow,
+    normalizePayload,
+    buildCopyRowHtml,
+    buildCopyRowTsv,
+    columnOrderHint,
+    escapeHtml,
+} = require('./table.js');
+const { buildVisitorEmailHtml, buildVisitorEmailText } = require('./visitor.js');
 
 /** Лог с отметкой времени — без него разбирать «письмо не пришло» невозможно */
 function log(message) {
@@ -142,6 +145,11 @@ app.get('/api/visitor/session/:linkId', (req, res) => {
     res.json({ ok: true });
 });
 
+/** Заголовки колонок для страницы копирования — единственный источник истины */
+app.get('/api/columns', (req, res) => {
+    res.json({ headers: buildColumns().map((c) => c.header) });
+});
+
 /* ------------------------------------------------------------------ */
 /* Генерация Excel                                                     */
 /* ------------------------------------------------------------------ */
@@ -225,42 +233,25 @@ async function generateExcelBuffer(data) {
 /* ------------------------------------------------------------------ */
 /* Тело письма: карточка для чтения + таблица для копирования          */
 /* ------------------------------------------------------------------ */
-const escapeHtml = (value) =>
-    String(value === undefined || value === null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-function buildEmailHtml(data) {
+function buildEmailHtml(data, options = {}) {
     const columns = buildColumns();
     const row = buildSummaryRow(data);
 
-    // Крайние столбцы оставляем читаемыми, средние ужимаем до предела,
-    // чтобы все 52 колонки помещались без прокрутки вбок
-    const lastIndex = columns.length - 1;
-    const edgeWidth = 6.5;
-    const middleWidth = (100 - edgeWidth * 2) / (columns.length - 2);
-    const widthOf = (i) => (i === 0 || i === lastIndex ? edgeWidth : middleWidth);
-
-    const cellBase = 'padding:1px 2px;word-break:break-word;overflow-wrap:anywhere;vertical-align:top;line-height:1.15;';
-
-    const headerCells = columns
-        .map(
-            (c, i) =>
-                `<th style="width:${widthOf(i).toFixed(2)}%;background:#16255C;color:#fff;font:bold 6px Arial;${cellBase}border:1px solid #BFC9D9;text-align:left;">${escapeHtml(
-                    c.header
-                )}</th>`
-        )
-        .join('');
-
-    const valueCells = columns
-        .map(
-            (c, i) =>
-                `<td style="width:${widthOf(i).toFixed(2)}%;font:7px Arial;${cellBase}border:1px solid #DDE3EC;">${escapeHtml(
-                    row[c.key]
-                )}</td>`
-        )
-        .join('');
+    // Кнопку в письме нажать нельзя — почтовые клиенты не исполняют скрипты.
+    // Поэтому даём ссылку на страницу, где кнопка настоящая.
+    const copyButton = options.copyUrl
+        ? `<div style="margin:14px 0 6px;">
+             <a href="${escapeHtml(options.copyUrl)}"
+                style="display:inline-block;background:#16255C;color:#ffffff;text-decoration:none;
+                       font:bold 12px Arial;padding:10px 16px;border-radius:2px;">
+               Скопировать информацию о работнике для реестра
+             </a>
+           </div>
+           <div style="font:10px Arial;color:#6A7A93;margin-bottom:10px;max-width:620px;">
+             Ссылка открывает страницу с кнопкой «Копировать». Данные передаются в самой ссылке
+             и на сервере не сохраняются.
+           </div>`
+        : '';
 
     const trainingsText = [1, 2, 3, 4, 5]
         .map((i) => row[`training${i}`])
@@ -300,18 +291,17 @@ function buildEmailHtml(data) {
     <table style="border-collapse:collapse;margin-bottom:16px;max-width:520px;">${summaryRows}</table>
 
     <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:12px;margin-bottom:6px;">
-      Строка для таблицы
+      Строка для вставки в таблицу
     </div>
-    <div style="font:10px Arial;color:#6A7A93;margin-bottom:6px;max-width:520px;">
-      Выделите таблицу ниже, скопируйте и вставьте в свою базу — колонки встанут по местам.
-      Тот же набор данных лежит во вложении <b>.xlsx</b>: там можно нажать Ctrl+A и скопировать всё целиком.
+    ${copyButton}
+    <div style="font:10px Arial;color:#6A7A93;margin-bottom:6px;max-width:620px;">
+      Здесь только данные, без заголовков — выделите строку, скопируйте и вставьте в свою таблицу.
+      Пустые ячейки сохранены, поэтому колонки не съедут.<br>
+      Порядок колонок: ${escapeHtml(columnOrderHint())}
     </div>
 
-    <div style="max-width:720px;">
-      <table style="border-collapse:collapse;table-layout:fixed;width:100%;">
-        <tr>${headerCells}</tr>
-        <tr>${valueCells}</tr>
-      </table>
+    <div style="max-width:1060px;overflow-x:auto;">
+      ${buildCopyRowHtml(row)}
     </div>
 
     <div style="font:11px Arial;color:#6A7A93;border-top:1px solid #DDE3EC;margin-top:20px;padding-top:12px;">
@@ -340,6 +330,19 @@ function buildEmailText(data) {
     return lines.join('\n');
 }
 
+/**
+ * Ссылка на страницу с настоящей кнопкой «Копировать».
+ * Строка данных едет во фрагменте (после #): фрагмент не уходит на сервер,
+ * не попадает в логи nginx и не сохраняется нигде.
+ */
+function buildCopyUrl(data, row, title) {
+    const base = String(data.appBase || '').trim();
+    if (!base || !/^https?:\/\//.test(base)) return '';
+    const payload = JSON.stringify({ title, tsv: buildCopyRowTsv(row) });
+    const encoded = Buffer.from(payload, 'utf8').toString('base64url');
+    return `${base.replace(/\/+$/, '')}/copy#${encoded}`;
+}
+
 /* ------------------------------------------------------------------ */
 /* Приём анкеты                                                        */
 /* ------------------------------------------------------------------ */
@@ -360,14 +363,27 @@ app.post('/api/submit', upload.any(), (req, res) => {
         };
 
         try {
+            if (typeof req.body.data !== 'string' || !req.body.data.trim()) {
+                cleanup();
+                return res.status(400).json({ error: 'no-data' });
+            }
             const data = normalizePayload(JSON.parse(req.body.data));
             const sessions = getSessions();
             const session = sessions[data.linkId];
-            const recipients = session ? session.recipients : DEFAULT_RECIPIENTS;
+            // Ссылка визитёра не годится для анкеты работника: её получатели —
+            // другие люди. Такую анкету отправляем по адресам охраны труда,
+            // а расхождение пишем в лог. У старых ссылок поля kind нет —
+            // для них ничего не меняется
+            const isEmployeeLink = !!session && session.kind !== 'visitor';
+            const recipients = isEmployeeLink ? session.recipients : DEFAULT_RECIPIENTS;
+            if (session && !isEmployeeLink) {
+                log(`ВНИМАНИЕ: анкета работника пришла по ссылке визитёра ${data.linkId}, отправляю на ${recipients}`);
+            }
 
             const safeName = String(data.employeeName || 'без_имени').replace(/\s+/g, '_');
             const excelBuffer = await generateExcelBuffer(data);
             const attachments = [{ filename: `Анкета_${safeName}.xlsx`, content: excelBuffer }];
+            const copyUrl = buildCopyUrl(data, buildSummaryRow(data), data.employeeName || '');
 
             if (req.files) {
                 for (const file of req.files) {
@@ -404,7 +420,7 @@ app.post('/api/submit', upload.any(), (req, res) => {
                 replyTo: data.personalEmail || SMTP_USER,
                 to: recipients,
                 subject: `Анкета ОТ — ${data.employeeName}`,
-                html: buildEmailHtml(data),
+                html: buildEmailHtml(data, { copyUrl }),
                 text: buildEmailText(data),
                 attachments
             });
@@ -436,8 +452,9 @@ async function generateVisitorExcelBuffer(data) {
     workbook.creator = 'Vega Development — заявка визитёра';
     workbook.created = new Date();
 
-    const sheet = workbook.addWorksheet('Визитёр', { views: [{ state: 'frozen', ySplit: 1 }] });
-    sheet.columns = buildVisitorColumns();
+    // Та же раскладка, что у анкеты работника: строку можно вставить в ту же базу
+    const sheet = workbook.addWorksheet('Сводная', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheet.columns = buildColumns();
 
     const header = sheet.getRow(1);
     header.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
@@ -453,7 +470,7 @@ async function generateVisitorExcelBuffer(data) {
         };
     });
 
-    const dataRow = sheet.addRow(buildVisitorRow(data));
+    const dataRow = sheet.addRow(buildSummaryRow({ ...data, formType: 'visitor' }));
     dataRow.font = { size: 10 };
     dataRow.alignment = { vertical: 'top', wrapText: false };
     dataRow.eachCell({ includeEmpty: true }, (cell) => {
@@ -487,8 +504,25 @@ app.post('/api/visitor/submit', upload.any(), (req, res) => {
         try {
             // Форма присылает multipart с полем data, но на всякий случай
             // разбираем и обычный JSON: express.json() подключён глобально
-            const raw = req.body && typeof req.body.data === 'string' ? req.body.data : null;
+            const raw = req.body && typeof req.body.data === 'string' && req.body.data.trim()
+                ? req.body.data
+                : null;
             const data = raw ? JSON.parse(raw) : req.body || {};
+
+            // Без ФИО и даты рождения заявка бесполезна: по ней не оформить
+            // пропуск и не найти человека в реестре. Такое тело — либо чужой
+            // запрос, либо сбой, и отвечать на него «успешно» нельзя.
+            // Остальное (направления, характер работ, контакты) может
+            // отсутствовать — заявку всё равно доставляем, в письме будет
+            // «не указаны», а пропуск оформят по уточнению
+            const missing = ['fullName', 'birthDate'].filter(
+                (key) => !String(data[key] || '').trim()
+            );
+            if (missing.length) {
+                log(`ОТКАЗ: заявка визитёра без обязательных полей (${missing.join(', ')})`);
+                cleanup();
+                return res.status(400).json({ error: 'missing-fields', missing });
+            }
 
             const sessions = getSessions();
             const session = data.linkId ? sessions[data.linkId] : null;
@@ -506,6 +540,8 @@ app.post('/api/visitor/submit', upload.any(), (req, res) => {
             const safeName = visitorName.replace(/\s+/g, '_');
             const excelBuffer = await generateVisitorExcelBuffer(data);
             const attachments = [{ filename: `Визитёр_${safeName}.xlsx`, content: excelBuffer }];
+            const visitorRow = buildSummaryRow({ ...data, formType: 'visitor' });
+            const copyUrl = buildCopyUrl(data, visitorRow, visitorName);
 
             const totalBytes = attachments.reduce((sum, a) => sum + (a.content ? a.content.length : 0), 0);
             log(`заявка визитёра: ${visitorName} | получатели: ${recipients} | вес: ${(totalBytes / 1048576).toFixed(2)} МБ`);
@@ -521,7 +557,7 @@ app.post('/api/visitor/submit', upload.any(), (req, res) => {
                 replyTo: data.email || SMTP_USER,
                 to: recipients,
                 subject: `Заявка визитёра — ${visitorName}`,
-                html: buildVisitorEmailHtml(data),
+                html: buildVisitorEmailHtml(data, { copyUrl }),
                 text: buildVisitorEmailText(data),
                 attachments
             });
