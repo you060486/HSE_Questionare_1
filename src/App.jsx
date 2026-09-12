@@ -3,8 +3,7 @@ import AdminPanel from './components/AdminPanel.jsx';
 import SurveyForm from './components/SurveyForm.jsx';
 import LanguageSplash from './components/LanguageSplash.jsx';
 import VisitorForm from './components/VisitorForm.jsx';
-import CopyRow from './components/CopyRow.jsx';
-import { isVisitorRoute, isCopyRoute } from './lib/route.js';
+import { isVisitorRoute } from './lib/route.js';
 
 const LANG_KEY = 'vd-newcomer-lang';
 
@@ -13,7 +12,6 @@ export default function App() {
   // Тип анкеты определяется путём и считается один раз:
   // внутри страницы переходов нет, App перерисовывается только по hashchange
   const [isVisitor] = useState(() => isVisitorRoute());
-  const [isCopy] = useState(() => isCopyRoute());
 
   useEffect(() => {
     const onHashChange = () => setHash(window.location.hash);
@@ -57,8 +55,6 @@ export default function App() {
   }, [lang]);
 
   if (hash === '#/admin') return <AdminPanel />;
-  // Страница копирования служебная: заставка выбора языка ей не нужна
-  if (isCopy) return <CopyRow />;
 
   return (
     <>

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Send, Loader2, Plus, Pencil } from 'lucide-react';
 
 import { translations } from '../i18n.js';
-import { appBase } from '../lib/route.js';
 import { COUNTRIES, DEFAULT_COUNTRY_ID, getCountry } from '../data/countries.js';
 import { ATTESTATION_AREAS } from '../data/attestation.js';
 import { TRAININGS, TRAINING_OTHER_CODE } from '../data/trainings.js';
@@ -565,8 +564,6 @@ export default function SurveyForm({ lang, onLangChange }) {
 
         trainings: trainingList,
         consentText: t.consentText,
-        // Чтобы ссылка на страницу копирования вела в тот же контур
-        appBase: appBase(),
       };
 
       const formData = new FormData();

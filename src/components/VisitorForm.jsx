@@ -12,7 +12,7 @@ import { Send, Loader2, AlertTriangle } from 'lucide-react';
 import { translations } from '../i18n.js';
 import { DIRECTIONS, VISIT_MODES, directionLines, directionFullLabel, getVisitMode, visitModeLabel } from '../data/directions.js';
 import { isValidDate, phoneDigits } from '../lib/format.js';
-import { getLinkId, appBase } from '../lib/route.js';
+import { getLinkId } from '../lib/route.js';
 import { FormHeader, FormTitle, SuccessModal } from './FormShell.jsx';
 import { Section, Field, TextInput, OptionCard, Callout, Panel, Button } from './ui.jsx';
 
@@ -163,8 +163,6 @@ export default function VisitorForm({ lang, onLangChange }) {
         visitModeText: mode ? mode.ru : '',
         phone: phone.trim(),
         email: email.trim(),
-        // Чтобы ссылка на страницу копирования вела в тот же контур
-        appBase: appBase(),
       };
 
       // Тот же multipart, что у анкеты работника: на сервере подключён

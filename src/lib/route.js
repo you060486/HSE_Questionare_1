@@ -12,7 +12,6 @@
 const BASE = import.meta.env.BASE_URL || '/';
 
 export const VISITOR_SEGMENT = 'visitor';
-export const COPY_SEGMENT = 'copy';
 
 /** Путь относительно базы: '' для анкеты работника, 'visitor' для визитёра */
 // Адрес сравниваем без учёта регистра: ссылку визитёра печатают на плакате
@@ -35,21 +34,9 @@ export function isVisitorRoute(pathname) {
   return firstSegment(pathname) === VISITOR_SEGMENT;
 }
 
-export function isCopyRoute(pathname) {
-  return firstSegment(pathname) === COPY_SEGMENT;
-}
-
 /** Идентификатор ссылки. Лежит в query, а не в хэше — его читает и фронт, и бэкенд */
 export function getLinkId(search = window.location.search) {
   return new URLSearchParams(search).get('id');
-}
-
-/**
- * Адрес приложения с учётом базы: его отдаём серверу, чтобы ссылка на страницу
- * копирования вела в тот же контур, из которого пришла анкета.
- */
-export function appBase(origin = window.location.origin) {
-  return `${origin}${BASE}`;
 }
 
 /**
