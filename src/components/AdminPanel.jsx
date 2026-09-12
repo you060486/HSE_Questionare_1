@@ -2,10 +2,21 @@
 // Логика та же, что и раньше, изменился только внешний вид.
 
 import { useState } from 'react';
-import { Plus, Trash2, Lock, Users, FileText, Copy, ArrowLeft, Check } from 'lucide-react';
+import { Plus, Trash2, Lock, Users, FileText, Copy, ArrowLeft, Check, Download } from 'lucide-react';
 import { VegaLogo } from './Logo.jsx';
 import { Button, Panel, Field, TextInput } from './ui.jsx';
 import { buildFormUrl } from '../lib/route.js';
+
+// QR печатают и вешают на КПП, поэтому рисуем его вектором: масштабируется без
+// пикселей и не зависит от canvas. Цвета фирменные, контраст для камеры достаточный.
+const QR_OPTIONS = { margin: 2, errorCorrectionLevel: 'M', color: { dark: '#16255C', light: '#FFFFFF' } };
+const svgToDataUrl = (svg) => `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`;
+const saveFile = (href, name) => {
+  const anchor = document.createElement('a');
+  anchor.href = href;
+  anchor.download = name;
+  anchor.click();
+};
 
 const emptyEmployee = () => ({ nameEn: '', surnameEn: '', fio: '', posRu: '', posEn: '', email: '' });
 
@@ -15,6 +26,8 @@ export default function AdminPanel() {
   const [status, setStatus] = useState('');
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState(false);
+  // QR-код нужен только для ссылки визитёра: её печатают и вешают на КПП
+  const [qrSvg, setQrSvg] = useState('');
 
   const [recipients, setRecipients] = useState([
     'Andrey.Ryzhov@vegadevelopment.com',
@@ -38,6 +51,20 @@ export default function AdminPanel() {
     setGeneratedLink('');
     setStatus('');
     setCopied(false);
+    setQrSvg('');
+  };
+
+  // Скачиваем PNG: его принимают Word, мессенджеры и типографии.
+  // Если браузер не даёт нарисовать растр — отдаём тот же QR вектором
+  const downloadQr = async () => {
+    if (!qrSvg) return;
+    try {
+      const { default: QRCode } = await import('qrcode');
+      const png = await QRCode.toDataURL(generatedLink, { ...QR_OPTIONS, width: 1024 });
+      saveFile(png, 'QR_анкета_визитёра.png');
+    } catch {
+      saveFile(svgToDataUrl(qrSvg), 'QR_анкета_визитёра.svg');
+    }
   };
 
   const updateRecipient = (index, value) =>
@@ -119,6 +146,15 @@ export default function AdminPanel() {
       setGeneratedLink(link);
 
       if (isVisitorMode) {
+        // QR рисуем здесь же, локально в браузере: ссылка никуда не уходит.
+        // Библиотека подгружается отдельным файлом, чтобы не утяжелять анкету
+        try {
+          const { default: QRCode } = await import('qrcode');
+          setQrSvg(await QRCode.toString(link, { ...QR_OPTIONS, type: 'svg' }));
+        } catch {
+          setQrSvg(''); // без QR ссылка всё равно работает
+        }
+
         // Письма-приглашения нет: кому его отправлять, система не знает.
         // Ссылку раздают вручную или печатают QR-кодом
         setStatus('Готово. Ссылку можно отправлять визитёрам или печатать QR-кодом.');
@@ -333,6 +369,28 @@ export default function AdminPanel() {
                 {copied ? 'Скопировано' : 'Копировать'}
               </Button>
             </div>
+
+            {isVisitorMode && qrSvg && (
+              <div className="border-t border-vd-blue/20 pt-3 vd-anim-expand">
+                <p className="text-[11px] font-bold text-vd-navy uppercase tracking-wide mb-2">QR-код на анкету</p>
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <img
+                    src={svgToDataUrl(qrSvg)}
+                    alt="QR-код на анкету визитёра"
+                    className="w-40 h-40 bg-white border border-vd-line p-1.5 vd-sharp shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[12px] text-vd-muted leading-relaxed mb-3">
+                      Ведёт на ту же ссылку. Можно распечатать и повесить на КПП —
+                      визитёр наводит камеру и попадает сразу в анкету.
+                    </p>
+                    <Button type="button" variant="secondary" onClick={downloadQr} className="justify-center">
+                      <Download className="w-4 h-4" /> Скачать PNG
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </Panel>
         )}
       </div>

@@ -12,7 +12,7 @@ import { Send, Loader2, AlertTriangle } from 'lucide-react';
 import { translations } from '../i18n.js';
 import { DIRECTIONS, VISIT_MODES, directionLines, directionFullLabel, getVisitMode, visitModeLabel } from '../data/directions.js';
 import { isValidDate, phoneDigits } from '../lib/format.js';
-import { getLinkId } from '../lib/route.js';
+import { getLinkId, appBase } from '../lib/route.js';
 import { FormHeader, FormTitle, SuccessModal } from './FormShell.jsx';
 import { Section, Field, TextInput, OptionCard, Callout, Panel, Button } from './ui.jsx';
 
@@ -68,29 +68,36 @@ export default function VisitorForm({ lang, onLangChange }) {
   /* ---------------------------------------------------------------- */
   const checks = useMemo(() => {
     const list = [];
-    const need = (key, ok, message = common.required) => list.push({ key, ok: !!ok, message });
+    // Храним название сообщения, а не текст: при смене языка подписи
+    // под полями должны переводиться вместе со всем остальным
+    const need = (key, ok, messageKey = 'required') => list.push({ key, ok: !!ok, messageKey });
 
-    // Не требуем «минимум два слова»: мононим или имя без отчества — не ошибка
-    need('fio', fio.trim().length >= 3);
+    // Не требуем «минимум два слова»: мононим или имя без отчества — не ошибка.
+    // Двух букв достаточно: «Ли», «Ань» — настоящие фамилии
+    need('fio', fio.trim().length >= 2);
     need('position', position.trim().length > 0);
-    need('birthDate', isValidDate(birthDate), common.invalidFormat);
-    need('directions', directions.length > 0, common.selectAtLeastOne);
-    need('visitMode', !!visitMode, common.selectAtLeastOne);
+    need('birthDate', isValidDate(birthDate), 'invalidFormat');
+    need('directions', directions.length > 0, 'selectAtLeastOne');
+    need('visitMode', !!visitMode, 'selectAtLeastOne');
     // Контакты необязательны: пустое поле считается заполненным,
     // иначе полоса заполнения никогда не дойдёт до ста процентов
-    need('phone', !phone.trim() || phoneDigits(phone) >= 10, common.invalidFormat);
-    need('email', !email.trim() || EMAIL_RE.test(email.trim()), common.invalidFormat);
-    need('consent', consent);
+    need('phone', !phone.trim() || phoneDigits(phone) >= 10, 'invalidFormat');
+    need('email', !email.trim() || EMAIL_RE.test(email.trim()), 'invalidFormat');
+    need('consent', consent, 'consentRequired');
 
     return list;
-  }, [common, fio, position, birthDate, directions, visitMode, phone, email, consent]);
+  }, [fio, position, birthDate, directions, visitMode, phone, email, consent]);
 
   const progress = useMemo(() => {
     if (!checks.length) return 0;
     return Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
   }, [checks]);
 
-  const err = (key) => errors[key];
+  // В errors лежит название сообщения — текст берём из текущего языка
+  const err = (key) => {
+    const messageKey = errors[key];
+    return messageKey ? common[messageKey] || common.required : undefined;
+  };
   const clearErr = (key) =>
     setErrors((prev) => {
       if (!prev[key]) return prev;
@@ -124,7 +131,7 @@ export default function VisitorForm({ lang, onLangChange }) {
     if (failed.length) {
       const map = {};
       failed.forEach((c) => {
-        map[c.key] = c.message;
+        map[c.key] = c.messageKey;
       });
       setErrors(map);
       setShowErrorBanner(true);
@@ -156,6 +163,8 @@ export default function VisitorForm({ lang, onLangChange }) {
         visitModeText: mode ? mode.ru : '',
         phone: phone.trim(),
         email: email.trim(),
+        // Чтобы ссылка на страницу копирования вела в тот же контур
+        appBase: appBase(),
       };
 
       // Тот же multipart, что у анкеты работника: на сервере подключён
@@ -358,6 +367,9 @@ export default function VisitorForm({ lang, onLangChange }) {
                 label={t.consent}
                 invalid={!!err('consent')}
               />
+              {err('consent') && (
+                <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('consent')}</p>
+              )}
             </div>
 
             {showErrorBanner && Object.keys(errors).length > 0 && (

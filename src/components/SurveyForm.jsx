@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Send, Loader2, Plus, Pencil } from 'lucide-react';
 
 import { translations } from '../i18n.js';
+import { appBase } from '../lib/route.js';
 import { COUNTRIES, DEFAULT_COUNTRY_ID, getCountry } from '../data/countries.js';
 import { ATTESTATION_AREAS } from '../data/attestation.js';
 import { TRAININGS, TRAINING_OTHER_CODE } from '../data/trainings.js';
@@ -310,86 +311,88 @@ export default function SurveyForm({ lang, onLangChange }) {
   /* ---------------------------------------------------------------- */
   const checks = useMemo(() => {
     const list = [];
-    const need = (key, ok, message = t.required) => list.push({ key, ok: !!ok, message });
+    // Храним не готовый текст, а название сообщения: иначе при смене языка
+    // подписи под полями остаются на прежнем языке
+    const need = (key, ok, messageKey = 'required') => list.push({ key, ok: !!ok, messageKey });
     const filled = (value) => String(value || '').trim().length > 0;
 
     need('employer', employer !== 'Другое' || filled(employerOther));
     if (country.isOther) need('citizenshipOther', filled(citizenshipOther));
     need('employeeName', filled(employeeName) && employeeName.trim().split(/\s+/).length >= 2);
-    need('birthDate', isValidDate(birthDate), t.invalidFormat);
-    need('department', department === DEPARTMENT_OTHER ? filled(departmentOther) : filled(department), t.selectAtLeastOne);
-    need('rotationStart', isValidDate(rotationStart), t.invalidFormat);
-    need('rotation', filled(rotation), t.selectAtLeastOne);
-    need('phone_0', filled(phones[0]?.value) && phones[0].value.replace(/\D/g, '').length >= 10, t.invalidFormat);
+    need('birthDate', isValidDate(birthDate), 'invalidFormat');
+    need('department', department === DEPARTMENT_OTHER ? filled(departmentOther) : filled(department), 'selectAtLeastOne');
+    need('rotationStart', isValidDate(rotationStart), 'invalidFormat');
+    need('rotation', filled(rotation), 'selectAtLeastOne');
+    need('phone_0', filled(phones[0]?.value) && phones[0].value.replace(/\D/g, '').length >= 10, 'invalidFormat');
     const isEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
     if (emailsInConfirmMode) {
       // Обе почты подставлены — достаточно подтвердить галочкой
-      need('emailsConfirmed', emailsConfirmed, t.confirmRequired);
+      need('emailsConfirmed', emailsConfirmed, 'confirmRequired');
     } else {
-      need('personalEmail', isEmail(personalEmail), t.invalidFormat);
-      if (filled(workEmail)) need('workEmail', isEmail(workEmail), t.invalidFormat);
+      need('personalEmail', isEmail(personalEmail), 'invalidFormat');
+      if (filled(workEmail)) need('workEmail', isEmail(workEmail), 'invalidFormat');
     }
 
     const pid = country.personalId;
     if (pid && pid.required) {
-      need('personalId', pid.validate ? pid.validate(personalIdValue) : filled(personalIdValue), t.invalidFormat);
+      need('personalId', pid.validate ? pid.validate(personalIdValue) : filled(personalIdValue), 'invalidFormat');
     }
 
-    need('promStatus', !!promStatus, t.selectAtLeastOne);
-    need('electroStatus', !!electroStatus, t.selectAtLeastOne);
+    need('promStatus', !!promStatus, 'selectAtLeastOne');
+    need('electroStatus', !!electroStatus, 'selectAtLeastOne');
 
     if (needsPassport) {
-      need('passportNumber', country.passport.validate(passportNumber), t.invalidFormat);
-      need('passportIssueDate', isValidDate(passportIssueDate), t.invalidFormat);
+      need('passportNumber', country.passport.validate(passportNumber), 'invalidFormat');
+      need('passportIssueDate', isValidDate(passportIssueDate), 'invalidFormat');
       if (country.issuedBy.show && country.issuedBy.required) need('passportIssuedBy', filled(passportIssuedBy));
       if (country.deptCode.show && country.deptCode.required) {
-        need('passportDeptCode', country.deptCode.validate ? country.deptCode.validate(passportDeptCode) : filled(passportDeptCode), t.invalidFormat);
+        need('passportDeptCode', country.deptCode.validate ? country.deptCode.validate(passportDeptCode) : filled(passportDeptCode), 'invalidFormat');
       }
     }
 
     if (needsTaxId) {
-      need('taxId', country.taxId.validate ? country.taxId.validate(taxIdValue) : filled(taxIdValue), t.invalidFormat);
+      need('taxId', country.taxId.validate ? country.taxId.validate(taxIdValue) : filled(taxIdValue), 'invalidFormat');
     }
 
     if (promStatus === 'have') {
       protocols.forEach((p) => {
         need(`protocol_${p.id}_number`, filled(p.number));
-        need(`protocol_${p.id}_venue`, filled(p.venue), t.selectAtLeastOne);
-        need(`protocol_${p.id}_date`, isValidDate(p.date), t.invalidFormat);
-        need(`protocol_${p.id}_areas`, p.areas.length > 0, t.selectAtLeastOne);
-        need(`protocol_${p.id}_file`, !!p.file, t.fileRequired);
+        need(`protocol_${p.id}_venue`, filled(p.venue), 'selectAtLeastOne');
+        need(`protocol_${p.id}_date`, isValidDate(p.date), 'invalidFormat');
+        need(`protocol_${p.id}_areas`, p.areas.length > 0, 'selectAtLeastOne');
+        need(`protocol_${p.id}_file`, !!p.file, 'fileRequired');
       });
     }
 
     if (electroStatus === 'have' || electroStatus === 'need') {
-      need('electroEducation', filled(electroEducation), t.selectAtLeastOne);
+      need('electroEducation', filled(electroEducation), 'selectAtLeastOne');
     }
     if (electroStatus === 'have') {
-      need('electroGroup', filled(electroGroup), t.selectAtLeastOne);
-      need('electroDate', isValidDate(electroDate), t.invalidFormat);
-      need('electroFile', !!electroFile, t.fileRequired);
+      need('electroGroup', filled(electroGroup), 'selectAtLeastOne');
+      need('electroDate', isValidDate(electroDate), 'invalidFormat');
+      need('electroFile', !!electroFile, 'fileRequired');
     }
 
-    need('height', heightClimb || heightApprove || heightWontDo, t.selectAtLeastOne);
-    need('confined', confinedWork || confinedApprove || confinedWontDo, t.selectAtLeastOne);
-    if (needsPhoto) need('photo', !!employeePhoto, t.fileRequired);
+    need('height', heightClimb || heightApprove || heightWontDo, 'selectAtLeastOne');
+    need('confined', confinedWork || confinedApprove || confinedWontDo, 'selectAtLeastOne');
+    if (needsPhoto) need('photo', !!employeePhoto, 'fileRequired');
 
-    need('drive', driveWill || driveWont, t.selectAtLeastOne);
+    need('drive', driveWill || driveWont, 'selectAtLeastOne');
     if (driveWill) {
       need('licenceNumber', filled(licenceNumber));
-      need('licenceDate', isValidDate(licenceDate), t.invalidFormat);
-      need('licenceCategories', licenceCategories.length > 0, t.selectAtLeastOne);
-      need('licenceFile', !!licenceFile, t.fileRequired);
+      need('licenceDate', isValidDate(licenceDate), 'invalidFormat');
+      need('licenceCategories', licenceCategories.length > 0, 'selectAtLeastOne');
+      need('licenceFile', !!licenceFile, 'fileRequired');
     }
 
     // Раздел «Другие обучения» заполнять не обязательно — он не блокирует отправку.
     // Незаполненные строки просто не попадут ни в письмо, ни в таблицу.
 
-    need('consent', consent, t.required);
+    need('consent', consent, 'consentRequired');
 
     return list;
   }, [
-    t, country, employer, employerOther, citizenshipOther, employeeName, birthDate, phones, personalEmail, workEmail,
+    country, employer, employerOther, citizenshipOther, employeeName, birthDate, phones, personalEmail, workEmail,
     department, departmentOther, rotationStart, rotation,
     emailsInConfirmMode, emailsConfirmed,
     personalIdValue, taxIdValue, promStatus, electroStatus, needsPassport, needsTaxId, passportNumber, passportIssueDate,
@@ -448,7 +451,7 @@ export default function SurveyForm({ lang, onLangChange }) {
     if (failed.length > 0) {
       const map = {};
       failed.forEach((c) => {
-        map[c.key] = c.message;
+        map[c.key] = c.messageKey;
       });
       setErrors(map);
       setShowErrorBanner(true);
@@ -562,6 +565,8 @@ export default function SurveyForm({ lang, onLangChange }) {
 
         trainings: trainingList,
         consentText: t.consentText,
+        // Чтобы ссылка на страницу копирования вела в тот же контур
+        appBase: appBase(),
       };
 
       const formData = new FormData();
@@ -604,7 +609,11 @@ export default function SurveyForm({ lang, onLangChange }) {
   /* ---------------------------------------------------------------- */
   /* Вспомогательное для разметки                                      */
   /* ---------------------------------------------------------------- */
-  const err = (key) => errors[key];
+  // В errors лежит название сообщения — текст берём из текущего языка
+  const err = (key) => {
+    const messageKey = errors[key];
+    return messageKey ? t[messageKey] || t.required : undefined;
+  };
   const clearErr = (key) =>
     setErrors((prev) => {
       if (!prev[key]) return prev;
@@ -1141,8 +1150,6 @@ export default function SurveyForm({ lang, onLangChange }) {
                               multiHint={t.searchMultiHint}
                               emptyText={t.searchEmpty}
                               doneLabel={t.searchDone}
-                          selectedLabel={t.searchSelected}
-                        selectedLabel={t.searchSelected}
                               selectedLabel={t.searchSelected}
                               removeLabel={t.remove}
                               invalid={!!err(`protocol_${protocol.id}_areas`)}
@@ -1624,7 +1631,6 @@ export default function SurveyForm({ lang, onLangChange }) {
                           emptyText={t.searchEmpty}
                           doneLabel={t.searchDone}
                           selectedLabel={t.searchSelected}
-                        selectedLabel={t.searchSelected}
                           removeLabel={t.remove}
                           invalid={!!err(`training_${item.id}_code`)}
                         />
@@ -1704,6 +1710,9 @@ export default function SurveyForm({ lang, onLangChange }) {
                   label={t.consentText}
                   invalid={!!err('consent')}
                 />
+                {err('consent') && (
+                  <p className="text-[11px] text-red-600 mt-1.5 font-medium">{err('consent')}</p>
+                )}
               </div>
 
               {showErrorBanner && (hasUnknown || Object.keys(errors).length > 0) && (
