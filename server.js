@@ -13,8 +13,7 @@ const {
     buildSummaryRow,
     normalizePayload,
     buildCopyRowHtml,
-    buildCopyRowTsv,
-    columnOrderHint,
+    shortName,
     escapeHtml,
 } = require('./table.js');
 const { buildVisitorEmailHtml, buildVisitorEmailText } = require('./visitor.js');
@@ -233,46 +232,28 @@ async function generateExcelBuffer(data) {
 /* ------------------------------------------------------------------ */
 /* Тело письма: карточка для чтения + таблица для копирования          */
 /* ------------------------------------------------------------------ */
-function buildEmailHtml(data, options = {}) {
-    const columns = buildColumns();
+// В теле письма — минимум: фамилия с инициалами, должность и потребности
+// в обучении. Полные персональные данные не пишем: они нужны только в строке
+// для вставки в таблицу и в приложенном файле, которые уходят получателю
+// и на сервере не остаются.
+function buildEmailHtml(data) {
     const row = buildSummaryRow(data);
-
-    // Кнопку в письме нажать нельзя — почтовые клиенты не исполняют скрипты.
-    // Поэтому даём ссылку на страницу, где кнопка настоящая.
-    const copyButton = options.copyUrl
-        ? `<div style="margin:14px 0 6px;">
-             <a href="${escapeHtml(options.copyUrl)}"
-                style="display:inline-block;background:#16255C;color:#ffffff;text-decoration:none;
-                       font:bold 12px Arial;padding:10px 16px;border-radius:2px;">
-               Скопировать информацию о работнике для реестра
-             </a>
-           </div>
-           <div style="font:10px Arial;color:#6A7A93;margin-bottom:10px;max-width:620px;">
-             Ссылка открывает страницу с кнопкой «Копировать». Данные передаются в самой ссылке
-             и на сервере не сохраняются.
-           </div>`
-        : '';
 
     const trainingsText = [1, 2, 3, 4, 5]
         .map((i) => row[`training${i}`])
         .filter(Boolean)
         .join('; ');
 
-    const summaryPairs = [
-        ['Отдел', row.department],
-        ['Место работы', row.employer],
-        ['Вахта', [row.rotationStart, row.rotation].filter(Boolean).join(', ')],
-        ['Гражданство', row.citizenship],
-        ['Телефон', row.phone],
-        ['Почта', [row.personalEmail, row.workEmail].filter(Boolean).join(', ')],
+    const needPairs = [
         ['Промышленная безопасность', row.prom],
         ['Электробезопасность', row.electro],
         ['Высота / ОЗП', `${row.height} / ${row.confined}`],
-        ['Транспорт (SVP)', row.svp + (row.licenceCategories ? ` (${row.licenceCategories})` : '')],
-        ['Другие обучения', trainingsText]
+        ['Группа В', row.groupV],
+        ['Транспорт (SVP)', row.svp],
+        ['Другие обучения', trainingsText],
     ];
 
-    const summaryRows = summaryPairs
+    const needRows = needPairs
         .filter(([, value]) => String(value || '').trim())
         .map(
             ([label, value]) =>
@@ -285,19 +266,19 @@ function buildEmailHtml(data, options = {}) {
     return `<!doctype html><html><body style="margin:0;padding:16px;background:#F4F6FA;font-family:Arial,sans-serif;">
   <div style="max-width:1100px;margin:0 auto;background:#fff;border-top:3px solid #1B85CE;padding:18px 20px;">
     <div style="font:bold 19px Arial;color:#16255C;margin:0 0 12px;">${escapeHtml(
-        [row.fullName, row.positionRu].filter(Boolean).join(' — ')
+        [shortName(row.fullName), row.positionRu].filter(Boolean).join(' — ')
     )}</div>
 
-    <table style="border-collapse:collapse;margin-bottom:16px;max-width:520px;">${summaryRows}</table>
+    <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;margin-bottom:4px;">
+      Потребность в обучении
+    </div>
+    <table style="border-collapse:collapse;margin-bottom:16px;max-width:520px;">${needRows}</table>
 
     <div style="font:bold 11px Arial;letter-spacing:1px;color:#16255C;text-transform:uppercase;border-top:1px solid #DDE3EC;padding-top:12px;margin-bottom:6px;">
       Строка для вставки в таблицу
     </div>
-    ${copyButton}
-    <div style="font:10px Arial;color:#6A7A93;margin-bottom:6px;max-width:620px;">
-      Здесь только данные, без заголовков — выделите строку, скопируйте и вставьте в свою таблицу.
-      Пустые ячейки сохранены, поэтому колонки не съедут.<br>
-      Порядок колонок: ${escapeHtml(columnOrderHint())}
+    <div style="font:10px Arial;color:#6A7A93;margin-bottom:6px;">
+      Выделите строку целиком и вставьте в свою таблицу.
     </div>
 
     <div style="max-width:1060px;overflow-x:auto;">
@@ -312,35 +293,28 @@ function buildEmailHtml(data, options = {}) {
 </body></html>`;
 }
 
-/** Простая текстовая версия того же письма */
 function buildEmailText(data) {
-    const columns = buildColumns();
     const row = buildSummaryRow(data);
     const lines = [
-        [row.fullName, row.positionRu].filter(Boolean).join(' — '),
+        [shortName(row.fullName), row.positionRu].filter(Boolean).join(' — '),
         '',
         'Анкета нового работника. Сводная таблица во вложении .xlsx',
-        ''
+        '',
+        'Потребность в обучении:',
     ];
-    columns.forEach((c) => {
-        const value = row[c.key];
-        if (value === undefined || value === null || String(value).trim() === '') return;
-        lines.push(`${c.header}: ${value}`);
+    [
+        ['Промышленная безопасность', row.prom],
+        ['Электробезопасность', row.electro],
+        ['Высота / ОЗП', `${row.height} / ${row.confined}`],
+        ['Группа В', row.groupV],
+        ['Транспорт (SVP)', row.svp],
+    ].forEach(([label, value]) => {
+        if (String(value || '').trim()) lines.push(`  ${label}: ${value}`);
+    });
+    [1, 2, 3, 4, 5].forEach((i) => {
+        if (row[`training${i}`]) lines.push(`  Другое обучение: ${row[`training${i}`]}`);
     });
     return lines.join('\n');
-}
-
-/**
- * Ссылка на страницу с настоящей кнопкой «Копировать».
- * Строка данных едет во фрагменте (после #): фрагмент не уходит на сервер,
- * не попадает в логи nginx и не сохраняется нигде.
- */
-function buildCopyUrl(data, row, title) {
-    const base = String(data.appBase || '').trim();
-    if (!base || !/^https?:\/\//.test(base)) return '';
-    const payload = JSON.stringify({ title, tsv: buildCopyRowTsv(row) });
-    const encoded = Buffer.from(payload, 'utf8').toString('base64url');
-    return `${base.replace(/\/+$/, '')}/copy#${encoded}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -383,7 +357,6 @@ app.post('/api/submit', upload.any(), (req, res) => {
             const safeName = String(data.employeeName || 'без_имени').replace(/\s+/g, '_');
             const excelBuffer = await generateExcelBuffer(data);
             const attachments = [{ filename: `Анкета_${safeName}.xlsx`, content: excelBuffer }];
-            const copyUrl = buildCopyUrl(data, buildSummaryRow(data), data.employeeName || '');
 
             if (req.files) {
                 for (const file of req.files) {
@@ -405,7 +378,8 @@ app.post('/api/submit', upload.any(), (req, res) => {
                 }
             }, 0);
 
-            log(`анкета: ${data.employeeName} | получатели: ${recipients} | вложений: ${attachments.length} | вес: ${(totalBytes / 1048576).toFixed(1)} МБ`);
+            // ФИО в лог не пишем: это персональные данные, а лог лежит на диске
+            log(`анкета принята | получатели: ${recipients} | вложений: ${attachments.length} | вес: ${(totalBytes / 1048576).toFixed(1)} МБ`);
 
             if (totalBytes > MAX_ATTACHMENTS_BYTES) {
                 log(`ОТКАЗ: вложения слишком тяжёлые (${(totalBytes / 1048576).toFixed(1)} МБ)`);
@@ -420,7 +394,7 @@ app.post('/api/submit', upload.any(), (req, res) => {
                 replyTo: data.personalEmail || SMTP_USER,
                 to: recipients,
                 subject: `Анкета ОТ — ${data.employeeName}`,
-                html: buildEmailHtml(data, { copyUrl }),
+                html: buildEmailHtml(data),
                 text: buildEmailText(data),
                 attachments
             });
@@ -541,10 +515,10 @@ app.post('/api/visitor/submit', upload.any(), (req, res) => {
             const excelBuffer = await generateVisitorExcelBuffer(data);
             const attachments = [{ filename: `Визитёр_${safeName}.xlsx`, content: excelBuffer }];
             const visitorRow = buildSummaryRow({ ...data, formType: 'visitor' });
-            const copyUrl = buildCopyUrl(data, visitorRow, visitorName);
 
             const totalBytes = attachments.reduce((sum, a) => sum + (a.content ? a.content.length : 0), 0);
-            log(`заявка визитёра: ${visitorName} | получатели: ${recipients} | вес: ${(totalBytes / 1048576).toFixed(2)} МБ`);
+            // ФИО в лог не пишем: это персональные данные, а лог лежит на диске
+            log(`заявка визитёра принята | получатели: ${recipients} | вес: ${(totalBytes / 1048576).toFixed(2)} МБ`);
 
             if (totalBytes > MAX_ATTACHMENTS_BYTES) {
                 log(`ОТКАЗ: вложение слишком тяжёлое (${(totalBytes / 1048576).toFixed(1)} МБ)`);
@@ -557,7 +531,7 @@ app.post('/api/visitor/submit', upload.any(), (req, res) => {
                 replyTo: data.email || SMTP_USER,
                 to: recipients,
                 subject: `Заявка визитёра — ${visitorName}`,
-                html: buildVisitorEmailHtml(data, { copyUrl }),
+                html: buildVisitorEmailHtml(data),
                 text: buildVisitorEmailText(data),
                 attachments
             });

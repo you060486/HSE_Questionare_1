@@ -162,14 +162,30 @@ const escapeHtml = (value) =>
         .replace(/"/g, '&quot;');
 
 /** Одна строка HTML-таблицы: 52 ячейки значений */
+// Колонки нарочно очень узкие: строку из 52 значений надо уметь выделить
+// одним движением и вставить в Excel. Текст в ячейках остаётся полным —
+// он копируется целиком, даже если на экране не виден.
 function buildCopyRowHtml(row) {
     const cells = COLUMNS.map(
         (c) =>
-            `<td style="font:11px Arial;padding:3px 6px;border:1px solid #DDE3EC;vertical-align:top;white-space:nowrap;">${escapeHtml(
+            `<td style="font:8px Arial;color:#16203A;padding:1px 2px;border:1px solid #DDE3EC;` +
+            `width:12px;max-width:12px;overflow:hidden;white-space:nowrap;vertical-align:top;">${escapeHtml(
                 row[c.key]
             )}</td>`
     ).join('');
-    return `<table style="border-collapse:collapse;"><tr>${cells}</tr></table>`;
+    return `<table style="border-collapse:collapse;table-layout:fixed;"><tr>${cells}</tr></table>`;
+}
+
+// В теле письма имя пишем сокращённо: «Иванов И.И.» вместо полного ФИО
+function shortName(fullName) {
+    const parts = String(fullName || '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+    if (!parts.length) return '';
+    const [surname, ...rest] = parts;
+    const initials = rest.map((word) => `${word[0].toUpperCase()}.`).join('');
+    return initials ? `${surname} ${initials}` : surname;
 }
 
 /** Та же строка через табуляцию — ею кормится кнопка копирования */
@@ -389,6 +405,7 @@ module.exports = {
     COLUMNS,
     buildCopyRowHtml,
     buildCopyRowTsv,
+    shortName,
     columnOrderHint,
     escapeHtml,
     normalizePayload,
