@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Lock, Users, FileText, Copy, ArrowLeft, Check } from 'lucide-react';
 import { VegaLogo } from './Logo.jsx';
 import { Button, Panel, Field, TextInput } from './ui.jsx';
+import { buildFormUrl } from '../lib/route.js';
 
 const emptyEmployee = () => ({ nameEn: '', surnameEn: '', fio: '', posRu: '', posEn: '', email: '' });
 
@@ -20,6 +21,9 @@ export default function AdminPanel() {
     'Viktoriya.Novikova@vegadevelopment.com',
   ]);
   const [employees, setEmployees] = useState([emptyEmployee()]);
+  // Какую ссылку генерируем: анкету работника или анкету визитёра
+  const [mode, setMode] = useState('employee');
+  const isVisitorMode = mode === 'visitor';
 
   const login = (event) => {
     event.preventDefault();
@@ -27,6 +31,13 @@ export default function AdminPanel() {
       setIsAuthed(true);
       setStatus('');
     }
+  };
+
+  const switchMode = (next) => {
+    setMode(next);
+    setGeneratedLink('');
+    setStatus('');
+    setCopied(false);
   };
 
   const updateRecipient = (index, value) =>
@@ -82,12 +93,16 @@ export default function AdminPanel() {
   const createLink = async () => {
     setStatus('Генерация…');
     try {
-      const validEmployees = employees.filter((e) => e.fio || e.nameEn || e.surnameEn || e.email);
+      const validEmployees = isVisitorMode
+        ? []
+        : employees.filter((e) => e.fio || e.nameEn || e.surnameEn || e.email);
+
       const res = await fetch('/api/admin/create-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           password,
+          kind: mode,
           recipients: recipients.filter((r) => r.trim()).join(', '),
           employees: validEmployees,
         }),
@@ -97,10 +112,20 @@ export default function AdminPanel() {
         setStatus('Ошибка: ' + data.error);
         return;
       }
-      const link = `${window.location.origin}${import.meta.env.BASE_URL}?id=${data.linkId}`;
+
+      // Адрес собирается от BASE_URL: в тестовой сборке ссылка должна
+      // указывать на /preview/, а не уводить на прод
+      const link = buildFormUrl(mode, data.linkId);
       setGeneratedLink(link);
-      generateEml(link);
-      setStatus(`Готово. Сотрудников в ссылке: ${validEmployees.length}. Файл письма скачан.`);
+
+      if (isVisitorMode) {
+        // Письма-приглашения нет: кому его отправлять, система не знает.
+        // Ссылку раздают вручную или печатают QR-кодом
+        setStatus('Готово. Ссылку можно отправлять визитёрам или печатать QR-кодом.');
+      } else {
+        generateEml(link);
+        setStatus(`Готово. Сотрудников в ссылке: ${validEmployees.length}. Файл письма скачан.`);
+      }
     } catch {
       setStatus('Ошибка: нет связи с сервером');
     }
@@ -175,6 +200,35 @@ export default function AdminPanel() {
           </a>
         </div>
 
+        {/* Что генерируем */}
+        <div>
+          <h3 className="vd-marker text-[13px] font-bold text-vd-blue uppercase tracking-wide mb-3">
+            Тип ссылки
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { key: 'employee', title: 'Анкета работника', hint: 'Полная: обучения, документы, сканы' },
+              { key: 'visitor', title: 'Анкета визитёра', hint: 'Короткая: ФИО, объекты, контакты' },
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => switchMode(option.key)}
+                className={`text-left border p-3 transition-all vd-sharp ${
+                  mode === option.key
+                    ? 'border-vd-blue bg-vd-blue-pale'
+                    : 'border-vd-line bg-white hover:border-vd-blue/50'
+                }`}
+              >
+                <span className={`block text-[13px] ${mode === option.key ? 'font-bold text-vd-navy' : 'text-vd-ink'}`}>
+                  {option.title}
+                </span>
+                <span className="block text-[11px] text-vd-muted mt-0.5">{option.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Получатели */}
         <div>
           <h3 className="vd-marker text-[13px] font-bold text-vd-blue uppercase tracking-wide mb-3">
@@ -202,7 +256,8 @@ export default function AdminPanel() {
           </div>
         </div>
 
-        {/* Сотрудники */}
+        {/* Сотрудники — только для анкеты работника */}
+        {!isVisitorMode && (
         <div className="border-t border-vd-line pt-6">
           <h3 className="vd-marker text-[13px] font-bold text-vd-blue uppercase tracking-wide mb-3">
             Сотрудники от HR
@@ -254,9 +309,10 @@ export default function AdminPanel() {
             </Button>
           </div>
         </div>
+        )}
 
         <Button type="button" onClick={createLink} className="w-full">
-          <FileText className="w-4 h-4" /> Создать ссылку и письмо
+          <FileText className="w-4 h-4" /> {isVisitorMode ? 'Создать ссылку для визитёров' : 'Создать ссылку и письмо'}
         </Button>
 
         {status && (
@@ -267,7 +323,9 @@ export default function AdminPanel() {
 
         {generatedLink && (
           <Panel tone="accent" className="vd-anim-expand space-y-3">
-            <p className="text-[12px] font-bold text-vd-navy uppercase tracking-wide">Ссылка готова</p>
+            <p className="text-[12px] font-bold text-vd-navy uppercase tracking-wide">
+              {isVisitorMode ? 'Ссылка для визитёров готова' : 'Ссылка готова'}
+            </p>
             <div className="flex flex-col sm:flex-row gap-2">
               <TextInput value={generatedLink} onChange={() => {}} readOnly />
               <Button type="button" variant="secondary" onClick={copyLink} className="shrink-0 justify-center">

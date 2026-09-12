@@ -214,6 +214,53 @@ export const translations = {
     mailFileNameLicence: 'водительское',
     mailFileNameOther: 'обучение',
     mailFileNamePhoto: 'фото',
+    // --- Анкета визитёра ---
+    // Отдельным блоком: ключи визитёра не смешиваются с ключами работника
+    visitor: {
+      pageTitle: 'Анкета визитёра — Vega Development',
+      eyebrow: 'Охрана труда и промышленная безопасность',
+      title: 'Анкета визитёра',
+      intro:
+        'Заполнение занимает пару минут. Данные нужны, чтобы оформить Вам допуск на объекты и подготовить инструктаж.',
+
+      personTitle: 'О Вас',
+      fio: 'Фамилия, имя и отчество',
+      fioHint: 'Как в документе, удостоверяющем личность',
+      fioPlaceholder: 'Иванов Иван Иванович',
+      position: 'Должность',
+      positionPlaceholder: 'Например: инженер технического надзора',
+      birthDate: 'Дата рождения',
+
+      visitTitle: 'Куда планируете поехать',
+      directionsLabel: 'Направления посещения',
+      directionsHint: 'Можно выбрать несколько',
+      visitModeLabel: 'Предполагаемые работы',
+      visitModeHint: 'Окончательный порядок доступа подтверждает принимающая сторона',
+
+      contactsTitle: 'Как с Вами связаться',
+      contactsHint:
+        'Заполнять не обязательно. Но с контактами мы сможем уточнить детали сами, не дожидаясь Вашего звонка',
+      phone: 'Телефон',
+      phoneHint: 'Можно с кодом страны, например +7 999 123-45-67',
+      email: 'Электронная почта',
+      emailPlaceholder: 'example@mail.ru',
+
+      consent:
+        'Я даю согласие на обработку моих персональных данных (152-ФЗ) для оформления допуска на объекты.',
+      submit: 'Отправить заявку',
+      submitting: 'Отправляем…',
+      sendError: 'Не получилось отправить. Проверьте интернет и попробуйте ещё раз.',
+
+      successTitle: 'Заявка отправлена',
+      successText:
+        'Мы получили Вашу заявку. Если потребуется что-то уточнить, с Вами свяжутся по указанным контактам.',
+      successBtn: 'Закрыть',
+
+      linkInvalidTitle: 'Ссылка недействительна',
+      linkInvalidText:
+        'Похоже, срок ссылки истёк или она скопирована не полностью. Запросите новую у того, кто Вас пригласил.',
+    },
+
   },
 
   en: {
@@ -424,6 +471,52 @@ export const translations = {
     mailFileNameLicence: 'driving_licence',
     mailFileNameOther: 'training',
     mailFileNamePhoto: 'photo',
+    // --- Visitor form ---
+    visitor: {
+      pageTitle: 'Visitor form — Vega Development',
+      eyebrow: 'Occupational Health and Industrial Safety',
+      title: 'Visitor form',
+      intro:
+        'This takes a couple of minutes. We need this information to arrange your site access and prepare your induction.',
+
+      personTitle: 'About you',
+      fio: 'Full name',
+      fioHint: 'Exactly as printed in your identity document',
+      fioPlaceholder: 'John Michael Smith',
+      position: 'Job title',
+      positionPlaceholder: 'For example: technical supervision engineer',
+      birthDate: 'Date of birth',
+
+      visitTitle: 'Where you plan to travel',
+      directionsLabel: 'Facilities you plan to visit',
+      directionsHint: 'You can select more than one',
+      visitModeLabel: 'Planned activities',
+      visitModeHint: 'The final access arrangement is confirmed by the host side',
+
+      contactsTitle: 'How to reach you',
+      contactsHint:
+        'These are optional. With your contacts we can clarify details ourselves instead of waiting for your call',
+      phone: 'Phone',
+      phoneHint: 'You may include the country code, for example +7 999 123-45-67',
+      email: 'Email',
+      emailPlaceholder: 'example@mail.com',
+
+      consent:
+        'I consent to the processing of my personal data (Federal Law 152-FZ) for the purpose of arranging site access.',
+      submit: 'Submit the request',
+      submitting: 'Sending…',
+      sendError: 'Could not send. Check your connection and try again.',
+
+      successTitle: 'Request sent',
+      successText:
+        'We have received your request. If anything needs clarifying, we will contact you using the details you provided.',
+      successBtn: 'Close',
+
+      linkInvalidTitle: 'This link is not valid',
+      linkInvalidText:
+        'The link may have expired or was copied incompletely. Please ask whoever invited you for a new one.',
+    },
+
   },
 };
 

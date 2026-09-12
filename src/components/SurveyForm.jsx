@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Send, Loader2, CheckCircle2, Plus, Globe, Pencil } from 'lucide-react';
+import { Send, Loader2, Plus, Pencil } from 'lucide-react';
 
 import { translations } from '../i18n.js';
 import { COUNTRIES, DEFAULT_COUNTRY_ID, getCountry } from '../data/countries.js';
@@ -8,8 +8,8 @@ import { TRAININGS, TRAINING_OTHER_CODE } from '../data/trainings.js';
 import { LICENCE_CATEGORIES } from '../data/licence.js';
 import { DEPARTMENTS, DEPARTMENT_OTHER, ROTATIONS, ROTATION_OTHER, PROTOCOL_VENUES } from '../data/departments.js';
 import { isValidDate } from '../lib/format.js';
-import { VegaLogo } from './Logo.jsx';
 import SmartSelect from './SmartSelect.jsx';
+import { FormHeader, FormTitle, SuccessModal } from './FormShell.jsx';
 
 /**
  * Как зовут человека на языке анкеты.
@@ -37,7 +37,6 @@ import {
   Panel,
   Button,
   RemoveButton,
-  ProgressBar,
 } from './ui.jsx';
 
 const MAX_PROTOCOLS = 5;
@@ -638,46 +637,14 @@ export default function SurveyForm({ lang, onLangChange }) {
   /* ---------------------------------------------------------------- */
   return (
     <div className="min-h-screen bg-vd-bg pb-24 sm:pb-8">
-      {/* Верхняя панель: логотип, переключатель языка и полоса заполнения.
-          Держится вверху экрана при прокрутке. */}
-      <header className="sticky top-0 z-30 bg-white border-b border-vd-line shadow-[0_1px_3px_rgba(22,37,92,0.06)]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-8 py-2.5 sm:py-3">
-          <div className="flex items-center justify-between gap-4">
-            <VegaLogo className="h-9 sm:h-11 text-[13px] sm:text-[16px]" />
+      <FormHeader
+        lang={lang}
+        onLangChange={onLangChange}
+        progress={formVisible ? progress : undefined}
+        progressLabel={`${t.progressLabel} ${progress}%`}
+      />
 
-            <div className="flex items-center gap-0.5 border border-vd-line p-0.5 shrink-0 vd-sharp">
-              <Globe className="w-3.5 h-3.5 text-vd-muted ml-1.5 mr-0.5 hidden sm:block" />
-              {['ru', 'en'].map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => onLangChange(code)}
-                  className={`px-2.5 py-1.5 text-[11px] font-bold uppercase transition-all vd-sharp ${
-                    lang === code ? 'bg-vd-navy text-white' : 'text-vd-muted hover:text-vd-navy hover:bg-vd-blue-pale'
-                  }`}
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {formVisible && (
-            <div className="mt-2.5 sm:mt-3">
-              <ProgressBar value={progress} label={`${t.progressLabel} ${progress}%`} />
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Название анкеты */}
-      <div className="bg-white border-b border-vd-line-soft">
-        <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 sm:py-8">
-          <p className="text-vd-blue text-[10px] sm:text-[11px] vd-eyebrow mb-2.5">{t.subtitle}</p>
-          <h1 className="text-vd-navy text-[22px] sm:text-3xl font-black leading-[1.15] mb-3">{t.title}</h1>
-          <p className="text-vd-muted text-[12px] sm:text-[13px] leading-relaxed max-w-xl">{t.intro}</p>
-        </div>
-      </div>
+      <FormTitle eyebrow={t.subtitle} title={t.title} intro={t.intro} />
 
       <div className="max-w-3xl mx-auto px-3 sm:px-8 py-5 sm:py-8">
         {/* Выбор себя из списка */}
@@ -1753,20 +1720,13 @@ export default function SurveyForm({ lang, onLangChange }) {
         )}
       </div>
 
-      {/* Успешная отправка */}
       {showSuccess && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-vd-navy-deep/70 backdrop-blur-sm vd-anim-fade-in">
-          <div className="bg-white w-full max-w-sm p-7 text-center vd-anim-sheet border-t-2 border-vd-blue">
-            <div className="w-16 h-16 mx-auto mb-5 bg-vd-blue-pale flex items-center justify-center vd-anim-pulse">
-              <CheckCircle2 className="w-8 h-8 text-vd-blue" />
-            </div>
-            <h3 className="text-xl font-black text-vd-navy uppercase tracking-wide mb-2">{t.modalSuccessTitle}</h3>
-            <p className="text-[13px] text-vd-muted leading-relaxed mb-6">{t.modalSuccessSubtitle}</p>
-            <Button type="button" onClick={() => setShowSuccess(false)} className="w-full">
-              {t.modalSuccessBtn}
-            </Button>
-          </div>
-        </div>
+        <SuccessModal
+          title={t.modalSuccessTitle}
+          text={t.modalSuccessSubtitle}
+          buttonLabel={t.modalSuccessBtn}
+          onClose={() => setShowSuccess(false)}
+        />
       )}
     </div>
   );

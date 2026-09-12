@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react';
 import AdminPanel from './components/AdminPanel.jsx';
 import SurveyForm from './components/SurveyForm.jsx';
 import LanguageSplash from './components/LanguageSplash.jsx';
+import VisitorForm from './components/VisitorForm.jsx';
+import { isVisitorRoute } from './lib/route.js';
 
 const LANG_KEY = 'vd-newcomer-lang';
 
 export default function App() {
   const [hash, setHash] = useState(window.location.hash);
+  // Тип анкеты определяется путём и считается один раз:
+  // внутри страницы переходов нет, App перерисовывается только по hashchange
+  const [isVisitor] = useState(() => isVisitorRoute());
 
   useEffect(() => {
     const onHashChange = () => setHash(window.location.hash);
@@ -53,7 +58,11 @@ export default function App() {
 
   return (
     <>
-      <SurveyForm lang={lang} onLangChange={changeLang} />
+      {isVisitor ? (
+        <VisitorForm lang={lang} onLangChange={changeLang} />
+      ) : (
+        <SurveyForm lang={lang} onLangChange={changeLang} />
+      )}
       {needsLangChoice && <LanguageSplash onChoose={chooseLang} />}
     </>
   );

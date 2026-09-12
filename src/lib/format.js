@@ -63,6 +63,23 @@ export function maskPhoneIntl(value) {
   return d ? '+' + d : '';
 }
 
+/**
+ * Телефон в свободной форме: ничего не переставляем и не достраиваем.
+ * Нужна там, где номер может быть любой страны: maskPhoneRu жёстко приводит
+ * к +7 и обрезает до 10 цифр, из-за чего иностранный номер портится.
+ */
+export function maskPhoneAny(value) {
+  return String(value || '')
+    .replace(/[^\d+()\-\s]/g, '')
+    .replace(/(?!^)\+/g, '')
+    .slice(0, 25);
+}
+
+/** Сколько в строке собственно цифр — для проверки, что номер похож на номер */
+export function phoneDigits(value) {
+  return String(value || '').replace(/\D/g, '').length;
+}
+
 /** Паспорт РФ: ХХ ХХ ХХХХХХ */
 export function maskPassportRu(value) {
   const d = digits(value).slice(0, 10);
@@ -127,6 +144,7 @@ export const MASKS = {
   belarusPersonal: maskBelarusPersonal,
   phoneRu: maskPhoneRu,
   phoneIntl: maskPhoneIntl,
+  phoneAny: maskPhoneAny,
   passportRu: maskPassportRu,
   passportKz: maskPassportKz,
   passportBy: maskPassportBy,
