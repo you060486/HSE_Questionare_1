@@ -248,13 +248,13 @@ export const translations = {
 
       consent:
         'Я даю согласие на обработку моих персональных данных (152-ФЗ) для оформления допуска на объекты.',
-      submit: 'Отправить заявку',
+      submit: 'Отправить анкету',
       submitting: 'Отправляем…',
       sendError: 'Не получилось отправить. Проверьте интернет и попробуйте ещё раз.',
 
-      successTitle: 'Заявка отправлена',
+      successTitle: 'Анкета отправлена',
       successText:
-        'Мы получили Вашу заявку. Если потребуется что-то уточнить, с Вами свяжутся по указанным контактам.',
+        'Мы получили Вашу анкету. Если потребуется что-то уточнить, с Вами свяжутся по указанным контактам.',
       successBtn: 'Закрыть',
 
       linkInvalidTitle: 'Ссылка недействительна',
@@ -505,13 +505,13 @@ export const translations = {
 
       consent:
         'I consent to the processing of my personal data (Federal Law 152-FZ) for the purpose of arranging site access.',
-      submit: 'Submit the request',
+      submit: 'Submit the form',
       submitting: 'Sending…',
       sendError: 'Could not send. Check your connection and try again.',
 
-      successTitle: 'Request sent',
+      successTitle: 'Form sent',
       successText:
-        'We have received your request. If anything needs clarifying, we will contact you using the details you provided.',
+        'We have received your form. If anything needs clarifying, we will contact you using the details you provided.',
       successBtn: 'Close',
 
       linkInvalidTitle: 'This link is not valid',
