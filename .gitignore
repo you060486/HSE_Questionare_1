@@ -1,0 +1,16 @@
+# Зависимости и сборки
+node_modules/
+dist/
+dist-preview/
+
+# Секреты и данные — на GitHub им не место
+.env
+.env.*
+*.log
+
+# Выданные ссылки на анкеты (служебные записи приложения)
+sessions.json
+sessions.json.tmp
+
+# Временные файлы загруженных сканов
+uploads/
