@@ -1,0 +1,384 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Фирменные цвета Vega Development — сняты с логотипа и корпоративных слайдов
+   ========================================================================== */
+@theme {
+  --color-vd-navy: #16255c;
+  --color-vd-navy-deep: #0c1633;
+  --color-vd-navy-soft: #22356f;
+  --color-vd-blue: #1b85ce;
+  --color-vd-blue-bright: #2e9ee0;
+  --color-vd-blue-pale: #eaf3fa;
+  --color-vd-line: #d5dde8;
+  --color-vd-line-soft: #e8edf4;
+  --color-vd-ink: #16203a;
+  --color-vd-muted: #6a7a93;
+  --color-vd-bg: #f4f6fa;
+
+  --font-sans: Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif;
+}
+
+/* ==========================================================================
+   Базовая типографика
+   ========================================================================== */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif;
+  background: var(--color-vd-bg);
+  color: var(--color-vd-ink);
+}
+
+@layer components {
+/* Углы намеренно почти прямые — как в корпоративной презентации */
+.vd-sharp {
+  border-radius: 2px;
+}
+
+.vd-flat {
+  border-radius: 0;
+}
+
+/* Заголовок раздела: капс с разрядкой */
+.vd-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Ромб с номером раздела — мотив из корпоративных слайдов
+   ========================================================================== */
+.vd-diamond {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vd-diamond::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--color-vd-blue) 0%, var(--color-vd-navy) 100%);
+  transform: rotate(45deg);
+}
+
+.vd-diamond > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Пустой ромб-контур — вторичный акцент */
+.vd-diamond-outline::before {
+  background: transparent;
+  border: 1px solid var(--color-vd-blue);
+}
+
+/* Треугольный маркер «▶» перед подзаголовком, как на слайдах */
+.vd-marker::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-right: 0.6em;
+  vertical-align: 0.05em;
+  border-top: 0.36em solid transparent;
+  border-bottom: 0.36em solid transparent;
+  border-left: 0.5em solid var(--color-vd-blue);
+}
+.vd-anim-fade-up {
+  animation: vd-fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vd-anim-fade-in {
+  animation: vd-fade-in 0.35s ease both;
+}
+
+.vd-anim-expand {
+  animation: vd-expand 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: top;
+}
+
+.vd-anim-chip {
+  animation: vd-chip-in 0.26s cubic-bezier(0.34, 1.4, 0.64, 1) both;
+}
+
+.vd-anim-sheet {
+  animation: vd-sheet-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vd-anim-pulse {
+  animation: vd-pulse-ring 1.8s ease-out infinite;
+}
+
+/* Появление разделов по мере прокрутки */
+.vd-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1), transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* transform: none, а не translateY(0) — иначе раздел остаётся отдельным
+   слоем и выпадающий список не может оказаться поверх соседних разделов */
+.vd-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Диагональная «заливка» кнопки при наведении */
+.vd-sweep-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.vd-sweep-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(120deg, var(--color-vd-blue) 0%, var(--color-vd-navy) 100%);
+  transform: translateX(-101%);
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vd-sweep-btn:hover::after,
+.vd-sweep-btn:focus-visible::after {
+  transform: translateX(0);
+}
+/* ==========================================================================
+   Поля ввода
+   ========================================================================== */
+.vd-input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--color-vd-line);
+  border-radius: 2px;
+  padding: 0.75rem 0.875rem;
+  font-size: 16px; /* 16px обязательно: иначе iOS зумит страницу при фокусе */
+  line-height: 1.35;
+  color: var(--color-vd-ink);
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.vd-input::placeholder {
+  color: #9aa8bd;
+}
+
+.vd-input:focus {
+  border-color: var(--color-vd-blue);
+  box-shadow: 0 0 0 3px rgba(27, 133, 206, 0.14);
+}
+
+.vd-input:disabled {
+  background: #f2f5f9;
+  color: var(--color-vd-muted);
+}
+
+/* Приглушённые (необязательные) поля */
+.vd-input-dim {
+  background: #fafbfd;
+  border-color: var(--color-vd-line-soft);
+  color: var(--color-vd-muted);
+}
+
+.vd-input-dim:focus {
+  background: #fff;
+  color: var(--color-vd-ink);
+  border-color: var(--color-vd-blue);
+}
+
+/* Подсветка поля, которое не прошло проверку при отправке */
+.vd-invalid {
+  border-color: #d64545 !important;
+  box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.14) !important;
+}
+
+/* Селект со своей стрелкой */
+.vd-select {
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%2316255C' d='M1 1.5 6 6.5l5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 12px 8px;
+  padding-right: 2.25rem;
+}
+
+/* Кастомные чекбокс и радио в фирменном стиле */
+.vd-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-vd-line);
+  border-radius: 2px;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.vd-check:checked {
+  background: linear-gradient(135deg, var(--color-vd-blue) 0%, var(--color-vd-navy) 100%);
+  border-color: var(--color-vd-navy);
+}
+
+.vd-check:checked::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 6px;
+  height: 11px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  animation: vd-fade-in 0.15s ease both;
+}
+
+.vd-check-radio {
+  border-radius: 50%;
+}
+
+.vd-check-radio:checked::after {
+  left: 5px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  transform: none;
+}
+
+/* Прокрутка внутри выпадающих списков — мягче на десктопе */
+.vd-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-vd-line) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vd-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vd-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-vd-line);
+  border-radius: 3px;
+}
+}
+
+/* ==========================================================================
+   Анимации
+   ========================================================================== */
+@keyframes vd-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vd-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vd-expand {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+  }
+}
+
+@keyframes vd-chip-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes vd-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vd-ray-in {
+  from {
+    opacity: 0;
+    transform: scale(0.35) rotate(-25deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes vd-sweep {
+  from {
+    transform: translateX(-101%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes vd-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(27, 133, 206, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(27, 133, 206, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(27, 133, 206, 0);
+  }
+}
+
+/* Уважаем настройку «уменьшить движение» в системе пользователя */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .vd-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
