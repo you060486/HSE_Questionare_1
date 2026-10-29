@@ -17,6 +17,7 @@ const {
     escapeHtml,
 } = require('./table.js');
 const { buildVisitorEmailHtml, buildVisitorEmailText } = require('./visitor.js');
+const { buildEml, contentDisposition } = require('./eml.js');
 
 /** Лог с отметкой времени — без него разбирать «письмо не пришло» невозможно */
 function log(message) {
@@ -236,7 +237,7 @@ async function generateExcelBuffer(data) {
 // в обучении. Полные персональные данные не пишем: они нужны только в строке
 // для вставки в таблицу и в приложенном файле, которые уходят получателю
 // и на сервере не остаются.
-function buildEmailHtml(data) {
+function buildEmailHtml(data, options = {}) {
     const row = buildSummaryRow(data);
 
     const trainingsText = [1, 2, 3, 4, 5]
@@ -287,7 +288,12 @@ function buildEmailHtml(data) {
 
     <div style="font:11px Arial;color:#6A7A93;border-top:1px solid #DDE3EC;margin-top:20px;padding-top:12px;">
       Во вложении: сводная таблица Excel и все загруженные сканы.
-      Файлы с сервера удалены сразу после отправки этого письма.
+      ${
+          options.recipients
+              ? `<br>Письмо адресовано: ${escapeHtml(options.recipients)} — если почтовая
+                 программа не подставила адреса, укажите их вручную.`
+              : ''
+      }
     </div>
   </div>
 </body></html>`;
@@ -322,99 +328,95 @@ function buildEmailText(data) {
 /* ------------------------------------------------------------------ */
 let submissionQueue = Promise.resolve();
 
-app.post('/api/submit', upload.any(), (req, res) => {
-    submissionQueue = submissionQueue.then(async () => {
-        const cleanup = () => {
-            if (req.files) {
-                req.files.forEach((f) => {
-                    try {
-                        if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
-                    } catch (e) {
-                        console.error('Не удалось удалить файл:', f.path, e.message);
-                    }
+// Анкета работника: сервер НЕ отправляет письмо, а собирает готовый файл .eml
+// и отдаёт его работнику на скачивание. Работник открывает файл и нажимает
+// «Отправить» в своей почте. Персональные данные не проходят через наш ящик,
+// а письмо приходит получателям с корпоративного адреса самого работника.
+//
+// Эта обработка не ставится в очередь отправки: SMTP здесь не участвует,
+// и зависший запрос не должен задерживать заявки визитёров.
+app.post('/api/submit', upload.any(), async (req, res) => {
+    const cleanup = () => {
+        if (req.files) {
+            req.files.forEach((f) => {
+                try {
+                    if (fs.existsSync(f.path)) fs.unlinkSync(f.path);
+                } catch (e) {
+                    console.error('Не удалось удалить файл:', f.path, e.message);
+                }
+            });
+        }
+    };
+
+    try {
+        if (typeof req.body.data !== 'string' || !req.body.data.trim()) {
+            cleanup();
+            return res.status(400).json({ error: 'no-data' });
+        }
+        const data = normalizePayload(JSON.parse(req.body.data));
+        const sessions = getSessions();
+        const session = sessions[data.linkId];
+        // Ссылка визитёра не годится для анкеты работника: её получатели —
+        // другие люди. Для такой анкеты подставляем адреса охраны труда,
+        // а расхождение пишем в лог. У старых ссылок поля kind нет —
+        // для них ничего не меняется
+        const isEmployeeLink = !!session && session.kind !== 'visitor';
+        const recipients = isEmployeeLink ? session.recipients : DEFAULT_RECIPIENTS;
+        if (session && !isEmployeeLink) {
+            log(`ВНИМАНИЕ: анкета работника пришла по ссылке визитёра ${data.linkId}, подставляю ${recipients}`);
+        }
+
+        const safeName = String(data.employeeName || 'без_имени').replace(/\s+/g, '_');
+        const excelBuffer = await generateExcelBuffer(data);
+        const attachments = [
+            {
+                filename: `Анкета_${safeName}.xlsx`,
+                content: excelBuffer,
+                contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            },
+        ];
+
+        if (req.files) {
+            for (const file of req.files) {
+                attachments.push({
+                    // multer отдаёт имя файла в latin1 — возвращаем кириллицу
+                    filename: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+                    content: fs.readFileSync(file.path),
+                    contentType: file.mimetype || 'application/octet-stream',
                 });
             }
-        };
-
-        try {
-            if (typeof req.body.data !== 'string' || !req.body.data.trim()) {
-                cleanup();
-                return res.status(400).json({ error: 'no-data' });
-            }
-            const data = normalizePayload(JSON.parse(req.body.data));
-            const sessions = getSessions();
-            const session = sessions[data.linkId];
-            // Ссылка визитёра не годится для анкеты работника: её получатели —
-            // другие люди. Такую анкету отправляем по адресам охраны труда,
-            // а расхождение пишем в лог. У старых ссылок поля kind нет —
-            // для них ничего не меняется
-            const isEmployeeLink = !!session && session.kind !== 'visitor';
-            const recipients = isEmployeeLink ? session.recipients : DEFAULT_RECIPIENTS;
-            if (session && !isEmployeeLink) {
-                log(`ВНИМАНИЕ: анкета работника пришла по ссылке визитёра ${data.linkId}, отправляю на ${recipients}`);
-            }
-
-            const safeName = String(data.employeeName || 'без_имени').replace(/\s+/g, '_');
-            const excelBuffer = await generateExcelBuffer(data);
-            const attachments = [{ filename: `Анкета_${safeName}.xlsx`, content: excelBuffer }];
-
-            if (req.files) {
-                for (const file of req.files) {
-                    attachments.push({
-                        filename: Buffer.from(file.originalname, 'latin1').toString('utf8'),
-                        path: file.path
-                    });
-                }
-            }
-
-            // Считаем вес письма заранее: если не влезет — честно скажем работнику,
-            // а не отчитаемся об успехе, которого не было
-            const totalBytes = attachments.reduce((sum, a) => {
-                if (a.content) return sum + a.content.length;
-                try {
-                    return sum + fs.statSync(a.path).size;
-                } catch {
-                    return sum;
-                }
-            }, 0);
-
-            // ФИО в лог не пишем: это персональные данные, а лог лежит на диске
-            log(`анкета принята | получатели: ${recipients} | вложений: ${attachments.length} | вес: ${(totalBytes / 1048576).toFixed(1)} МБ`);
-
-            if (totalBytes > MAX_ATTACHMENTS_BYTES) {
-                log(`ОТКАЗ: вложения слишком тяжёлые (${(totalBytes / 1048576).toFixed(1)} МБ)`);
-                cleanup();
-                return res.status(413).json({ error: 'too-large' });
-            }
-
-            const info = await transporter.sendMail({
-                // Имя отправителя и обратный адрес заметно улучшают доставляемость:
-                // без них почта организации охотнее отправляет письмо в спам
-                from: `Анкета нового работника <${SMTP_USER}>`,
-                replyTo: data.personalEmail || SMTP_USER,
-                to: recipients,
-                subject: `Анкета ОТ — ${data.employeeName}`,
-                html: buildEmailHtml(data),
-                text: buildEmailText(data),
-                attachments
-            });
-
-            log(`отправлено: ${info.messageId} | принято: ${JSON.stringify(info.accepted)} | отклонено: ${JSON.stringify(info.rejected)} | ответ: ${info.response}`);
-
-            cleanup();
-            res.status(200).json({ success: true });
-        } catch (error) {
-            log(`ОШИБКА: ${error.message || error}`);
-            if (error.response) log(`  ответ SMTP: ${error.response}`);
-            if (error.stack) log(`  ${error.stack.split('\n').slice(1, 3).join(' | ')}`);
-            cleanup();
-            if (!res.headersSent) res.status(500).json({ error: 'Внутренняя ошибка сервера' });
         }
-    // Без этого одна упавшая отправка навсегда обрывает очередь
-    // и все следующие анкеты молча перестают обрабатываться
-    }).catch((error) => {
-        log(`СБОЙ ОЧЕРЕДИ: ${error && error.message ? error.message : error}`);
-    });
+
+        // Вес считаем заранее: письмо с вложениями тяжелее лимита корпоративной
+        // почты работник всё равно не отправит, и лучше сказать об этом сразу
+        const totalBytes = attachments.reduce((sum, a) => sum + a.content.length, 0);
+        log(`анкета собрана | получатели: ${recipients} | вложений: ${attachments.length} | вес: ${(totalBytes / 1048576).toFixed(1)} МБ`);
+
+        if (totalBytes > MAX_ATTACHMENTS_BYTES) {
+            log(`ОТКАЗ: вложения слишком тяжёлые (${(totalBytes / 1048576).toFixed(1)} МБ)`);
+            cleanup();
+            return res.status(413).json({ error: 'too-large' });
+        }
+
+        const eml = buildEml({
+            to: recipients,
+            subject: `Анкета ОТ — ${data.employeeName}`,
+            html: buildEmailHtml(data, { recipients }),
+            text: buildEmailText(data),
+            attachments,
+        });
+
+        cleanup();
+        res.setHeader('Content-Type', 'message/rfc822');
+        res.setHeader('Content-Disposition', contentDisposition(`Анкета_${safeName}.eml`));
+        res.setHeader('Content-Length', eml.length);
+        res.status(200).send(eml);
+    } catch (error) {
+        log(`ОШИБКА: ${error.message || error}`);
+        if (error.stack) log(`  ${error.stack.split('\n').slice(1, 3).join(' | ')}`);
+        cleanup();
+        if (!res.headersSent) res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
 });
 
 /* ------------------------------------------------------------------ */
