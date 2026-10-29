@@ -2,6 +2,7 @@
 node_modules/
 dist/
 dist-preview/
+tests/app-bundle.js
 
 # Секреты и данные — на GitHub им не место
 .env

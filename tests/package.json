@@ -1,0 +1,8 @@
+{
+  "name": "newcomer-tests",
+  "private": true,
+  "description": "Проверки анкеты: браузерные через jsdom и серверные через копию бэкенда",
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  }
+}
