@@ -10,6 +10,7 @@ import { DEPARTMENTS, DEPARTMENT_OTHER, ROTATIONS, ROTATION_OTHER, PROTOCOL_VENU
 import { isValidDate } from '../lib/format.js';
 import SmartSelect from './SmartSelect.jsx';
 import { FormHeader, FormTitle, SuccessModal } from './FormShell.jsx';
+import { saveLetter, emlFileName } from '../lib/letter.js';
 
 /**
  * Как зовут человека на языке анкеты.
@@ -135,6 +136,8 @@ export default function SurveyForm({ lang, onLangChange }) {
   const [consent, setConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  // Скачанное письмо держим в памяти: браузер мог заблокировать первое скачивание
+  const [letter, setLetter] = useState(null);
   const [errors, setErrors] = useState({});
   const [showErrorBanner, setShowErrorBanner] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -594,7 +597,12 @@ export default function SurveyForm({ lang, onLangChange }) {
 
       const response = await fetch('/api/submit', { method: 'POST', body: formData });
       if (!response.ok) throw new Error('bad response');
-      await response.json();
+      // Сервер отдаёт не «успешно», а готовое письмо: адреса, текст и вложения
+      // уже внутри. Отправляет его работник сам из своей почты
+      const letter = await response.blob();
+      const name = emlFileName(response.headers.get('Content-Disposition'), employeeName);
+      setLetter({ blob: letter, name });
+      saveLetter(letter, name);
       setShowSuccess(true);
     } catch {
       setSendError(t.submitError);
@@ -1731,6 +1739,8 @@ export default function SurveyForm({ lang, onLangChange }) {
           title={t.modalSuccessTitle}
           text={t.modalSuccessSubtitle}
           buttonLabel={t.modalSuccessBtn}
+          secondaryLabel={letter ? t.modalSuccessAgain : null}
+          onSecondary={letter ? () => saveLetter(letter.blob, letter.name) : null}
           onClose={() => setShowSuccess(false)}
         />
       )}

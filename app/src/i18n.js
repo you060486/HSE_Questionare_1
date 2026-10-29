@@ -190,9 +190,11 @@ export const translations = {
     validationError: 'Проверьте выделенные поля — там чего-то не хватает',
 
     // --- Успех ---
-    modalSuccessTitle: 'Спасибо',
-    modalSuccessSubtitle: 'Анкета отправлена. Если потребуется что-то уточнить, мы свяжемся с Вами',
+    modalSuccessTitle: 'Письмо готово',
+    modalSuccessSubtitle:
+      'Файл письма скачан. Откройте его — адреса, текст и вложения уже на месте, останется нажать «Отправить» в своей почте. Без этого анкета до нас не дойдёт.',
     modalSuccessBtn: 'Закрыть',
+    modalSuccessAgain: 'Скачать письмо снова',
 
     // --- Служебное ---
     chooseFile: 'Выбрать файл',
@@ -448,9 +450,11 @@ export const translations = {
     validationError: 'Please check the highlighted fields — something is missing',
 
     // --- Success ---
-    modalSuccessTitle: 'Thank you',
-    modalSuccessSubtitle: 'Your form has been sent. We will contact you if anything needs clarifying',
+    modalSuccessTitle: 'Your email is ready',
+    modalSuccessSubtitle:
+      'The email file has been downloaded. Open it — the recipients, the text and the attachments are already in place, you only need to press Send in your mail app. Without that we will not receive the form.',
     modalSuccessBtn: 'Close',
+    modalSuccessAgain: 'Download the email again',
 
     // --- Misc ---
     chooseFile: 'Choose a file',
