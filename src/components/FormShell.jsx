@@ -63,7 +63,7 @@ export function FormTitle({ eyebrow, title, intro }) {
 }
 
 /** Окно «отправлено» */
-export function SuccessModal({ title, text, buttonLabel, onClose }) {
+export function SuccessModal({ title, text, buttonLabel, onClose, secondaryLabel, onSecondary }) {
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-vd-navy-deep/70 backdrop-blur-sm vd-anim-fade-in">
       <div className="bg-white w-full max-w-sm p-7 text-center vd-anim-sheet border-t-2 border-vd-blue">
@@ -72,6 +72,11 @@ export function SuccessModal({ title, text, buttonLabel, onClose }) {
         </div>
         <h3 className="text-xl font-black text-vd-navy uppercase tracking-wide mb-2">{title}</h3>
         <p className="text-[13px] text-vd-muted leading-relaxed mb-6">{text}</p>
+        {secondaryLabel && onSecondary && (
+          <Button type="button" variant="secondary" onClick={onSecondary} className="w-full mb-2 justify-center">
+            {secondaryLabel}
+          </Button>
+        )}
         <Button type="button" onClick={onClose} className="w-full">
           {buttonLabel}
         </Button>
